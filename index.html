@@ -18,11 +18,26 @@ function renderThreads(){$('thread').innerHTML=entries.map(x=>`<option value="${
  // Read-only shared gallery and published questions. No teacher credentials
  // are sent to the public GitHub site. Local demo submissions remain separate.
  async function publicRead(action){
-   const response=await fetch(url+'?action='+encodeURIComponent(action),{redirect:'follow'});
-   if(!response.ok)throw new Error('HTTP '+response.status);
-   const body=await response.json();
-   if(!body.success||!Array.isArray(body.data))throw new Error(body.error||'Respons tidak sah');
-   return body.data;
+   // Apps Script ContentService JSON redirects usually cannot be read using
+   // cross-origin fetch from GitHub Pages. Backend V2.1 supports JSONP for GET.
+   return new Promise((resolve,reject)=>{
+     const callback='rfCallback_'+Math.random().toString(36).slice(2);
+     const el=document.createElement('script');
+     let finished=false;
+     const timer=setTimeout(()=>finish(new Error('API tidak membalas dalam 15 saat.')),15000);
+     function finish(err,data){
+       if(finished)return;finished=true;clearTimeout(timer);el.remove();
+       try{delete window[callback]}catch(e){window[callback]=undefined}
+       err?reject(err):resolve(data);
+     }
+     window[callback]=body=>{
+       if(!body||!body.success||!Array.isArray(body.data))finish(new Error(body?.error||'Respons tidak sah'));
+       else finish(null,body.data);
+     };
+     el.onerror=()=>finish(new Error('Tidak dapat memuatkan API.'));
+     el.src=url+'?action='+encodeURIComponent(action)+'&callback='+callback;
+     document.head.append(el);
+   });
  }
  window.loadSharedGallery=async function(){
    const holder=document.getElementById('sharedGalleryContent');
@@ -71,8 +86,12 @@ function renderThreads(){$('thread').innerHTML=entries.map(x=>`<option value="${
  classes.forEach(name=>{const opt=document.createElement('option');opt.value=name;opt.textContent=name;shared.querySelector('select').append(opt)});
  window.loadSharedGallery();window.loadSharedQuestions();
  if(!url){document.getElementById('apiStatus').textContent='URL deployment belum ditetapkan.';return;}
- fetch(url+'?action=health',{redirect:'follow'}).then(r=>r.json()).then(d=>{
- document.getElementById('apiStatus').textContent=d.success&&d.status==='ONLINE'?'✅ API boleh dibaca. Simpanan dua hala belum diaktifkan sehingga sambungan penulisan diuji.':'⚠️ API memberikan respons tidak dijangka; semak deployment.';
- }).catch(()=>{document.getElementById('apiStatus').textContent='⚠️ Pelayar belum dapat membaca respons API. Semak akses deployment dan keserasian Apps Script/CORS.'});
+ (function(){
+ const cb='rfHealth_'+Math.random().toString(36).slice(2),el=document.createElement('script');
+ const timer=setTimeout(()=>end(null),15000);
+ function end(d){clearTimeout(timer);el.remove();try{delete window[cb]}catch(e){window[cb]=undefined}
+ document.getElementById('apiStatus').textContent=d?.success&&d.status==='ONLINE'?'✅ Apps Script '+(d.version||'')+' aktif. Galeri dan bank soalan awan boleh diuji.':'⚠️ Sambungan API tidak dapat disahkan dalam pelayar ini.'}
+ window[cb]=end;el.onerror=()=>end(null);el.src=url+'?action=health&callback='+cb;document.head.append(el);
+ })();
 })();
 </script></body></html>
