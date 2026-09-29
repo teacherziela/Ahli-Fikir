@@ -118,6 +118,32 @@ function initTeacher(){
  const section=document.createElement('section');section.className='card';
  section.innerHTML='<h2>☁️ Meja Semakan Google Sheets</h2><p class="muted">Ini jawapan sebenar daripada semua gajet. Arkib semakan lama kekal berasingan. Masukkan kunci guru Apps Script secara peribadi untuk setiap tindakan; kunci tidak disimpan.</p><label>Kunci guru Apps Script (bukan PIN demo)</label><input type="password" id="rfCloudKey" autocomplete="off"><button id="rfLoadAnswers">Muat jawapan murid</button><p id="rfTeacherStatus" role="status" class="muted"></p><div id="rfTeacherEntries"></div><div id="rfCloudReview" class="hidden"><h3 id="rfReviewName"></h3><p id="rfReviewQuestion"></p><div class="row"><button type="button" id="rfRed">✎ Pen merah</button><button type="button" id="rfGreen">✓ Pen hijau</button><button type="button" class="secondary" id="rfUndo">↶ Undo</button><button type="button" class="secondary" id="rfClear">Padam dakwat</button></div><div class="paper" id="rfPaper"><pre id="rfReviewText"></pre><canvas id="rfInk"></canvas></div><label>Markah</label><input type="number" id="rfScore" min="0" step="1"><label>Komen guru</label><textarea id="rfFeedback"></textarea><button id="rfSaveCloud">Simpan semakan awan</button><button class="secondary" id="rfPublishCloud">Terbit ke Galeri Bersama</button><p id="rfReviewStatus" role="status"></p></div>';
  $('guru').insertBefore(section,$('guru').firstElementChild);
+ const moderation=document.createElement('section');moderation.className='card';
+ moderation.innerHTML='<h2>💜 Kelulusan Sticky Notes</h2><button id="rfLoadNotes" class="secondary">Semak nota menunggu</button><div id="rfPendingNotes"></div><p id="rfNotesStatus" class="muted" role="status"></p>';
+ $('guru').insertBefore(moderation,$('legacyTeacher'));
+ $('rfLoadNotes').onclick=async()=>{
+   if(!$('rfCloudKey').value.trim()){text('rfNotesStatus','Masukkan kunci guru terlebih dahulu.');return}
+   text('rfNotesStatus','Memuatkan nota...');
+   try{
+     const r=await post({action:'getPendingNotes',teacherKey:$('rfCloudKey').value.trim()});
+     if(!r.success)throw Error(r.error||'Gagal memuatkan nota');
+     const holder=$('rfPendingNotes');holder.replaceChildren();
+     (r.data||[]).forEach(n=>{
+       const item=document.createElement('div');item.className='note';
+       const message=document.createElement('p');message.textContent=(n.NAMA_PANGGILAN||'Rakan')+': '+(n.MESEJ||'');
+       const button=document.createElement('button');button.textContent='✓ Lulus untuk galeri';
+       button.onclick=async()=>{
+         button.disabled=true;
+         try{const response=await post({action:'approveStickyNote',teacherKey:$('rfCloudKey').value.trim(),noteId:n.ID_NOTA});
+           if(!response.success)throw Error(response.error||'Gagal lulus');item.remove();text('rfNotesStatus','✅ Sticky note diluluskan.');if(window.loadSharedGallery)window.loadSharedGallery()
+         }catch(err){text('rfNotesStatus','⚠️ '+err.message);button.disabled=false}
+       };
+       item.append(message,button);holder.append(item);
+     });
+     text('rfNotesStatus',(r.data||[]).length+' nota menunggu kelulusan.');
+   }catch(err){text('rfNotesStatus','⚠️ '+err.message)}
+ };
+
  let answers=[],selected=null,strokes=[],drawing=null,color='#db3344',max=0;
  const ink=$('rfInk'),ctx=ink.getContext('2d');
  const status=x=>text('rfTeacherStatus',x);
