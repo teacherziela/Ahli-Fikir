@@ -21,10 +21,28 @@ function readReceipt(requestId){
    document.head.append(script);
  })
 }
+function getApiHealth(){
+ return new Promise((resolve,reject)=>{
+  const cb='rfHealthCheck_'+Math.random().toString(36).slice(2),script=document.createElement('script');
+  const timer=setTimeout(()=>end(new Error('API tidak memberi respons.')),12000);
+  function end(err,result){clearTimeout(timer);script.remove();delete window[cb];err?reject(err):resolve(result)}
+  window[cb]=data=>end(null,data);script.onerror=()=>end(new Error('URL deployment tidak dapat diakses.'));
+  script.src=API+'?action=health&callback='+cb+'&_='+Date.now();document.head.append(script);
+ })
+}
+let healthPromise=null;
+async function requireV15(){
+ if(!healthPromise)healthPromise=getApiHealth().catch(e=>{healthPromise=null;throw e});
+ const result=await healthPromise;
+ const version=Number.parseFloat(result?.version);
+ if(!result?.success||!Number.isFinite(version)||version<15)throw new Error('Apps Script yang aktif masih versi '+(result?.version||'tidak diketahui')+'. Fungsi semakan awan memerlukan deployment V15. Google Sheets dan rekod sedia ada selamat.');
+ return true;
+}
 function post(data){
  return new Promise(async (resolve,reject)=>{
    if(!API)return reject(new Error('URL Apps Script belum disediakan.'));
    if(!crypto.randomUUID)return reject(new Error('Pelayar memerlukan sambungan HTTPS.'));
+   try{await requireV15()}catch(err){return reject(err)}
    const requestId=crypto.randomUUID();
    const iframe=document.createElement('iframe');
    iframe.style.display='none';iframe.name='rf_silent_post_'+requestId;
@@ -34,15 +52,15 @@ function post(data){
    input.value=JSON.stringify({...data,requestId});
    form.append(input);document.body.append(form);form.submit();form.remove();
    try{
-     for(let i=0;i<18;i++){
-       await new Promise(r=>setTimeout(r,1300));
+     for(let i=0;i<14;i++){
+       await new Promise(r=>setTimeout(r,1600));
        let body;
        try{body=await readReceipt(requestId)}catch(e){continue}
        if(body?.success&&body.ready===false)continue;
        if(!body?.success)throw Error(body?.error||'Server tidak mengesahkan rekod.');
        return resolve(body.result);
      }
-     reject(new Error('Belum ada pengesahan dari Google Sheets. Semak database sebelum cuba semula supaya tidak berganda.'));
+     reject(new Error('API V15 aktif tetapi resit belum diterima. Semak deployment dan tab Apps Script Executions. Jangan ulang hantaran jawapan sebelum periksa database.'));
    }catch(err){reject(err)}
    finally{iframe.remove()}
  })
@@ -148,6 +166,7 @@ function initTeacher(){
  const ink=$('rfInk'),ctx=ink.getContext('2d');
  const status=x=>text('rfTeacherStatus',x);
  const key=()=>$('rfCloudKey').value.trim();
+ requireV15().then(()=>text('rfTeacherStatus','✅ API V15 dikesan. Masukkan kunci guru dan muat jawapan.')).catch(err=>text('rfTeacherStatus','⚠️ '+err.message));
  $('rfLoadAnswers').onclick=async()=>{
    if(!key()){status('Masukkan kunci guru dahulu.');return}
    status('Memuatkan jawapan daripada Google Sheets…');
