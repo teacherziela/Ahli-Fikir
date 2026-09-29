@@ -50,6 +50,7 @@ function post(data){
 const receiptsKey='rf-cloud-receipts-v15';
 function receipts(){try{return JSON.parse(localStorage.getItem(receiptsKey)||'[]')}catch(e){return []}}
 function saveReceipt(r){const arr=receipts();arr.unshift(r);localStorage.setItem(receiptsKey,JSON.stringify(arr.slice(0,100)))}
+window.rfCloudPost=post;
 function init(){
  const cloud=$('cloudSubmit'),box=$('cloudState');
  if(!cloud||!box)return;
@@ -113,10 +114,10 @@ function renderInk(canvas,strokes){
  });
 }
 function initTeacher(){
- const gate=$('teacherDesk');if(!gate)return;
+ const gate=$('guru');if(!gate)return;
  const section=document.createElement('section');section.className='card';
  section.innerHTML='<h2>☁️ Meja Semakan Google Sheets</h2><p class="muted">Ini jawapan sebenar daripada semua gajet. Arkib semakan lama kekal berasingan. Masukkan kunci guru Apps Script secara peribadi untuk setiap tindakan; kunci tidak disimpan.</p><label>Kunci guru Apps Script (bukan PIN demo)</label><input type="password" id="rfCloudKey" autocomplete="off"><button id="rfLoadAnswers">Muat jawapan murid</button><p id="rfTeacherStatus" role="status" class="muted"></p><div id="rfTeacherEntries"></div><div id="rfCloudReview" class="hidden"><h3 id="rfReviewName"></h3><p id="rfReviewQuestion"></p><div class="row"><button type="button" id="rfRed">✎ Pen merah</button><button type="button" id="rfGreen">✓ Pen hijau</button><button type="button" class="secondary" id="rfUndo">↶ Undo</button><button type="button" class="secondary" id="rfClear">Padam dakwat</button></div><div class="paper" id="rfPaper"><pre id="rfReviewText"></pre><canvas id="rfInk"></canvas></div><label>Markah</label><input type="number" id="rfScore" min="0" step="1"><label>Komen guru</label><textarea id="rfFeedback"></textarea><button id="rfSaveCloud">Simpan semakan awan</button><button class="secondary" id="rfPublishCloud">Terbit ke Galeri Bersama</button><p id="rfReviewStatus" role="status"></p></div>';
- gate.insertBefore(section,gate.firstElementChild);
+ $('guru').insertBefore(section,$('guru').firstElementChild);
  let answers=[],selected=null,strokes=[],drawing=null,color='#db3344',max=0;
  const ink=$('rfInk'),ctx=ink.getContext('2d');
  const status=x=>text('rfTeacherStatus',x);
