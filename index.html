@@ -138,7 +138,7 @@ function renderThreads(){$('thread').innerHTML=entries.map(x=>`<option value="${
    const holder=document.getElementById('sharedQuestionStatus');
    try{
      const all=await publicRead('questions');window.sharedQuestions=all;
-     holder.textContent='✅ '+all.length+' soalan diterbitkan dalam Google Sheets.';if(window.refreshCloudQuestions)window.refreshCloudQuestions();
+     holder.textContent='✅ '+all.length+' soalan diterbitkan dalam Google Sheets.';document.getElementById('apiStatus').textContent='✅ Sambungan bank soalan Google Sheets berjaya. Ujian simpan & semak awan memerlukan API resit V15.';if(window.refreshCloudQuestions)window.refreshCloudQuestions();
    }catch(err){holder.textContent='⚠️ Bank soalan awan belum dapat dibaca: '+err.message;}
  };
  const classes=['1 Adil','1 Gigih','1 Cendekia','1 Bestari','1 Yakin','1 Tekun','1 Usaha','2 Adil','2 Bestari','2 Cendekia','2 Dedikasi','2 Ehsan','2 Gigih','2 Harmoni','2 Kreatif','2 Murni','2 Progresif','2 Rasional','2 Tekun','2 Yakin'];
