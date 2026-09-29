@@ -121,7 +121,20 @@ function renderThreads(){$('thread').innerHTML=entries.map(x=>`<option value="${
        const comment=document.createElement('p');comment.textContent=x.komen||'Tiada komen guru.';
        const notes=document.createElement('div');
        (x.stickyNotes||[]).forEach(n=>{const el=document.createElement('p');el.className='note';el.textContent=(n.nama||'Rakan')+': '+(n.mesej||'');notes.append(el)});
-       card.append(title,question,paper,score,comment,notes);holder.append(card);
+       const cheer=document.createElement('div');cheer.className='card';cheer.style.background='#f7f1ff';
+ const cheerHead=document.createElement('strong');cheerHead.textContent='💜 Kata-kata semangat';
+ const cheerName=document.createElement('input');cheerName.maxLength=30;cheerName.placeholder='Nama panggilan';
+ const cheerText=document.createElement('textarea');cheerText.maxLength=180;cheerText.placeholder='Contoh: Bagus! Teruskan usaha!';
+ const cheerButton=document.createElement('button');cheerButton.className='secondary';cheerButton.textContent='Tampal sticky note';
+ const cheerStatus=document.createElement('p');cheerStatus.className='muted';cheerStatus.setAttribute('role','status');
+ cheerButton.onclick=async()=>{
+   if(!cheerName.value.trim()||!cheerText.value.trim()){cheerStatus.textContent='Masukkan nama panggilan dan mesej dahulu.';return}
+   if(!window.rfCloudPost){cheerStatus.textContent='Sambungan belum tersedia. Cuba muat semula laman.';return}
+   cheerButton.disabled=true;cheerStatus.textContent='Menghantar untuk kelulusan guru...';
+   try{const r=await window.rfCloudPost({action:'addStickyNote',answerId:x.id,name:cheerName.value.trim(),message:cheerText.value.trim()});if(!r.success)throw Error(r.error||'Gagal menghantar');cheerStatus.textContent='✅ Nota dihantar untuk kelulusan guru.';cheerText.value=''}catch(e){cheerStatus.textContent='⚠️ '+e.message}finally{cheerButton.disabled=false}
+ };
+ cheer.append(cheerHead,cheerName,cheerText,cheerButton,cheerStatus);
+ card.append(title,question,paper,score,comment,notes,cheer);holder.append(card);
        requestAnimationFrame(()=>{
          canvas.width=paper.clientWidth;canvas.height=paper.clientHeight;
          const ctx=canvas.getContext('2d');
