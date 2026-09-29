@@ -76,9 +76,39 @@ function renderThreads(){$('thread').innerHTML=entries.map(x=>`<option value="${
    const holder=document.getElementById('sharedQuestionStatus');
    try{
      const all=await publicRead('questions');window.sharedQuestions=all;
-     holder.textContent='✅ '+all.length+' soalan diterbitkan dalam Google Sheets. Penghantaran jawapan awan belum diaktifkan.';
+     holder.textContent='✅ '+all.length+' soalan diterbitkan dalam Google Sheets.';if(window.refreshCloudQuestions)window.refreshCloudQuestions();
    }catch(err){holder.textContent='⚠️ Bank soalan awan belum dapat dibaca: '+err.message;}
  };
+ // Cloud questions are separate from local demo bank: question IDs come from Sheets.
+ const cloudBox=document.createElement('section');cloudBox.className='card';
+ cloudBox.innerHTML='<h2>☁️ Hantar jawapan ke Google Sheets</h2><p class="muted">Pilih soalan daripada bank bersama. Selepas hantar, tab Google akan memaparkan resit jawapan (ID dan receipt). Simpan kedua-duanya secara peribadi untuk semakan kemudian. Jangan tutup tab itu sebelum mencatat resit. Ruang latihan demo di atas kekal berasingan.</p><div class="grid"><div><label>Tingkatan</label><select id="cloudLevel"><option value="1">Tingkatan 1</option><option value="2">Tingkatan 2</option></select></div><div><label>Kelas</label><select id="cloudClass"></select></div></div><label>Nama panggilan</label><input id="cloudName" maxlength="50" placeholder="Contoh: Murid 01"><label>Soalan terbitan guru</label><select id="cloudQuestion"></select><p id="cloudPrompt" class="muted"></p><label>Jawapan</label><textarea id="cloudAnswer" maxlength="15000" placeholder="Taip jawapan di sini..."></textarea><button id="cloudSubmit" disabled>Hantar ke Google Sheets & buka resit</button><p id="cloudState" class="muted">Memuatkan soalan...</p>';
+ document.getElementById('murid').append(cloudBox);
+ const cloudLevel=cloudBox.querySelector('#cloudLevel'),cloudClass=cloudBox.querySelector('#cloudClass'),cloudQuestion=cloudBox.querySelector('#cloudQuestion');
+ function refreshCloudClasses(){
+   cloudClass.replaceChildren();
+   classes.filter(c=>c.startsWith(cloudLevel.value+' ')).forEach(c=>{const op=document.createElement('option');op.value=c;op.textContent=c;cloudClass.append(op)});
+   refreshCloudQuestions();
+ }
+ function refreshCloudQuestions(){
+   cloudQuestion.replaceChildren();
+   const list=(window.sharedQuestions||[]).filter(q=>String(q.level)===cloudLevel.value);
+   list.forEach(q=>{const op=document.createElement('option');op.value=q.id;op.textContent='Bab '+q.topic+' · '+q.kind+' · '+q.max+' markah — '+q.q;cloudQuestion.append(op)});
+   cloudBox.querySelector('#cloudSubmit').disabled=!list.length;
+   cloudBox.querySelector('#cloudPrompt').textContent=list.find(q=>String(q.id)===cloudQuestion.value)?.q||'Belum ada soalan awan bagi tingkatan ini.';
+ }
+ cloudLevel.addEventListener('change',refreshCloudClasses);
+ cloudQuestion.addEventListener('change',refreshCloudQuestions);
+ window.refreshCloudQuestions=refreshCloudQuestions;
+ cloudBox.querySelector('#cloudSubmit').addEventListener('click',()=>{
+   const name=cloudBox.querySelector('#cloudName').value.trim(),answer=cloudBox.querySelector('#cloudAnswer').value.trim();
+   if(!cloudQuestion.value||!name||!answer){cloudBox.querySelector('#cloudState').textContent='Isi nama panggilan, pilih soalan dan taip jawapan dahulu.';return;}
+   const payload={action:'submitAnswer',questionId:cloudQuestion.value,name,cls:cloudClass.value,answer};
+   const form=document.createElement('form');form.method='POST';form.action=url;form.target='_blank';form.style.display='none';
+   const field=document.createElement('input');field.type='hidden';field.name='payload';field.value=JSON.stringify(payload);form.append(field);
+   document.body.append(form);form.submit();form.remove();
+   cloudBox.querySelector('#cloudState').textContent='Semak tab resit Google yang dibuka. Penghantaran hanya berjaya jika tab itu menunjukkan success:true. Catat ID dan receipt. Jika tab disekat pop-up, benarkan pop-up untuk laman ini dan cuba semula dengan berhati-hati (jangan hantar dua kali).';
+ });
+ refreshCloudClasses();
  const shared=document.createElement('section');shared.className='card';
  shared.innerHTML='<h2>☁️ Galeri Bersama (Google Sheets)</h2><p class="muted">Hanya jawapan yang diterbitkan guru dipaparkan. Ini berasingan daripada Galeri Jawapan demo yang tersimpan pada pelayar ini.</p><label>Tapis kelas</label><select id="sharedClass" onchange="loadSharedGallery()"><option value="">Semua kelas</option></select><button class="secondary" onclick="loadSharedGallery()">Muat semula galeri bersama</button><div id="sharedGalleryContent" aria-live="polite">Memuatkan...</div><p id="sharedQuestionStatus" class="muted"></p>';
  document.getElementById('album').insertBefore(shared,document.getElementById('album').firstElementChild);
