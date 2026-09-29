@@ -5,35 +5,47 @@
 'use strict';
 const API=window.RUANG_FIKIR_API_URL;
 const ORIGIN=location.origin;
-const pending=new Map();
 const $=id=>document.getElementById(id);
-const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const text=(id,value)=>{if($(id))$(id).textContent=value};
-let requestCounter=0;
-window.addEventListener('message',event=>{
- if(event.origin!=='https://script.google.com'&&event.origin!=='https://script.googleusercontent.com')return;
- const d=event.data;
- if(!d||d.rfBridge!=='AHLI_FIKIR_V15'||typeof d.requestId!=='string')return;
- const slot=pending.get(d.requestId);
- if(!slot)return;
- clearTimeout(slot.timeout);pending.delete(d.requestId);
- try{slot.popup?.close()}catch(e){}
- slot.resolve(d.result);
-});
-function post(data){
+// Apps Script GET JSONP is supported for public reads. POST is sent into an
+// invisible iframe; a random one-use request ID fetches its result afterward.
+// No teacher key appears in a URL.
+function readReceipt(requestId){
  return new Promise((resolve,reject)=>{
+   const cb='rfResult_'+Math.random().toString(36).slice(2);
+   const script=document.createElement('script');let done=false;
+   const timer=setTimeout(()=>end(new Error('Semakan resit mengambil masa terlalu lama.')),9000);
+   function end(err,result){if(done)return;done=true;clearTimeout(timer);script.remove();delete window[cb];err?reject(err):resolve(result)}
+   window[cb]=body=>end(null,body);script.onerror=()=>end(new Error('Sambungan resit gagal.'));
+   script.src=API+'?action=receipt&requestId='+encodeURIComponent(requestId)+'&callback='+cb+'&_='+Date.now();
+   document.head.append(script);
+ })
+}
+function post(data){
+ return new Promise(async (resolve,reject)=>{
    if(!API)return reject(new Error('URL Apps Script belum disediakan.'));
-   const requestId='rf_'+Date.now()+'_'+(++requestCounter);
-   const popup=window.open('about:blank','rf_api_'+requestId);
-   if(!popup)return reject(new Error('Pelayar menyekat pop-up. Benarkan pop-up untuk laman ini.'));
-   try{popup.document.write('<!doctype html><title>Ruang Fikir</title><p>Memproses rekod. Sila tunggu…</p>');popup.document.close()}catch(e){}
-   const timeout=setTimeout(()=>{pending.delete(requestId);reject(new Error('Belum menerima pengesahan daripada Apps Script. Semak tab resit sebelum cuba semula.'))},22000);
-   pending.set(requestId,{resolve,reject,popup,timeout});
-   const form=document.createElement('form');form.method='POST';form.action=API;form.target=popup.name;form.hidden=true;
+   if(!crypto.randomUUID)return reject(new Error('Pelayar memerlukan sambungan HTTPS.'));
+   const requestId=crypto.randomUUID();
+   const iframe=document.createElement('iframe');
+   iframe.style.display='none';iframe.name='rf_silent_post_'+requestId;
+   document.body.append(iframe);
+   const form=document.createElement('form');form.method='POST';form.action=API;form.target=iframe.name;form.hidden=true;
    const input=document.createElement('input');input.name='payload';input.type='hidden';
-   input.value=JSON.stringify({...data,clientOrigin:ORIGIN,requestId});
+   input.value=JSON.stringify({...data,requestId});
    form.append(input);document.body.append(form);form.submit();form.remove();
- });
+   try{
+     for(let i=0;i<18;i++){
+       await new Promise(r=>setTimeout(r,1300));
+       let body;
+       try{body=await readReceipt(requestId)}catch(e){continue}
+       if(body?.success&&body.ready===false)continue;
+       if(!body?.success)throw Error(body?.error||'Server tidak mengesahkan rekod.');
+       return resolve(body.result);
+     }
+     reject(new Error('Belum ada pengesahan dari Google Sheets. Semak database sebelum cuba semula supaya tidak berganda.'));
+   }catch(err){reject(err)}
+   finally{iframe.remove()}
+ })
 }
 const receiptsKey='rf-cloud-receipts-v15';
 function receipts(){try{return JSON.parse(localStorage.getItem(receiptsKey)||'[]')}catch(e){return []}}
