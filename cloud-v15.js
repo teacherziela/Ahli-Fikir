@@ -133,7 +133,7 @@ function initTeacher(){
      const questionMap=new Map((window.sharedQuestions||[]).map(q=>[String(q.id),q]));
      answers.forEach(a=>{
        const b=document.createElement('button');b.className='secondary';b.style.margin='5px';b.textContent=a.KOD_MURID+' · '+a.KELAS+' · '+(a.STATUS_SEMAKAN||'BELUM SEMAK');
-       b.onclick=()=>{selected=a;const q=questionMap.get(String(a.ID_SOALAN));max=Number(q?.max||100);$('rfReviewName').textContent=a.KOD_MURID+' · '+a.KELAS;$('rfReviewQuestion').textContent=q?.q||'Soalan daripada ID '+a.ID_SOALAN;$('rfReviewText').textContent=a.JAWAPAN;$('rfScore').max=max;$('rfScore').value='';$('rfFeedback').value='';strokes=[];$('rfCloudReview').classList.remove('hidden');requestAnimationFrame(size);text('rfReviewStatus','Beri markah, kemudian Simpan semakan awan.')};holder.append(b)
+       b.onclick=()=>{selected=a;saved=false;const q=questionMap.get(String(a.ID_SOALAN));max=Number(q?.max||100);$('rfReviewName').textContent=a.KOD_MURID+' · '+a.KELAS;$('rfReviewQuestion').textContent=q?.q||'Soalan daripada ID '+a.ID_SOALAN;$('rfReviewText').textContent=a.JAWAPAN;$('rfScore').max=max;$('rfScore').value='';$('rfFeedback').value='';strokes=[];$('rfCloudReview').classList.remove('hidden');requestAnimationFrame(size);text('rfReviewStatus','Beri markah, kemudian Simpan semakan awan.')};holder.append(b)
      })
    }catch(err){status('⚠️ '+err.message)}
  };
