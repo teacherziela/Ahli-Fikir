@@ -59,12 +59,23 @@ button:disabled{opacity:.55;cursor:not-allowed}
 const API=window.RUANG_FIKIR_API_URL;
 const $=id=>document.getElementById(id);
 const classes=['1 Adil','1 Gigih','1 Cendekia','1 Bestari','1 Yakin','1 Tekun','1 Usaha','2 Adil','2 Bestari','2 Cendekia','2 Dedikasi','2 Ehsan','2 Gigih','2 Harmoni','2 Kreatif','2 Murni','2 Progresif','2 Rasional','2 Tekun','2 Yakin'];
-let questions=[],selected=null,busy=false,ready=false;
+let questions=[],selected=null,busy=false,ready=false,questionState='loading';
 const status=(message,kind='muted')=>{$('state').textContent=message;$('state').className=kind};
-function read(action,params={}){
+async function read(action,params={}){
+ // Public reads must not depend on which Google account is signed in.
+ const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),12000);
+ try{
+  const result=await fetch(API+'?'+new URLSearchParams({action,...params,_:String(Date.now())}),{mode:'cors',credentials:'omit',redirect:'follow',referrerPolicy:'no-referrer',signal:controller.signal});
+  if(!result.ok)throw Error('HTTP '+result.status);
+  const body=await result.json();
+  if(!body||typeof body.success!=='boolean')throw Error('Respons tidak sah.');
+  return body;
+ }catch(error){return readJsonp(action,params)}finally{clearTimeout(timeout)}
+}
+function readJsonp(action,params={}){
  return new Promise((resolve,reject)=>{
   const cb='rfStudent_'+crypto.randomUUID().replaceAll('-','');
-  const el=document.createElement('script');let done=false;
+  const el=document.createElement('script');el.referrerPolicy='no-referrer';let done=false;
   const finish=(error,data)=>{if(done)return;done=true;clearTimeout(timer);el.remove();delete window[cb];error?reject(error):resolve(data)};
   const timer=setTimeout(()=>finish(Error('Sambungan mengambil masa terlalu lama.')),15000);
   window[cb]=data=>finish(null,data);el.onerror=()=>finish(Error('Sambungan Google Sheets tidak dapat dibaca.'));
@@ -80,27 +91,27 @@ function refreshState(){
  try{
   const saved=record();
   if(saved){$('send').disabled=true;if(saved.status==='confirmed')status('✓ Jawapan ini sudah disimpan. ID: '+saved.id,'ok');else{status('Hantaran ini belum disahkan. Tekan Semak status hantaran; jangan hantar semula.','warn');$('check').hidden=false}}
-  else status(ready?'Pilih soalan, isi nama dan jawapan.':'Memuatkan soalan terbitan guru…');
+  else status(ready?'Pilih soalan, isi nama dan jawapan.':questionState==='error'?'Soalan belum dapat dimuatkan. Tekan Muat semula soalan.':'Memuatkan soalan terbitan guru…',questionState==='error'?'warn':'muted');
  }catch(e){$('send').disabled=true;status('Benarkan storan pelayar untuk mengelakkan hantaran berulang.','warn')}
 }
 function renderQuestions(){
  selected=null;$('selected').textContent='Belum pilih soalan.';$('questions').replaceChildren();
  const list=questions.filter(q=>String(q.level)===$('level').value);
  list.forEach(q=>{const b=document.createElement('button');b.type='button';b.className='q';b.setAttribute('aria-pressed','false');b.textContent='Bab '+q.topic+' · '+q.kind+' · '+q.max+' markah — '+q.q;b.onclick=()=>{if(busy)return;selected=q;document.querySelectorAll('.q').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-pressed','false')});b.classList.add('active');b.setAttribute('aria-pressed','true');$('selected').textContent='Dipilih: '+q.q;refreshState()};$('questions').append(b)});
- if(!list.length)$('questions').textContent='Belum ada soalan diterbitkan bagi tingkatan ini.';
+ if(!list.length)$('questions').textContent=questionState==='loaded'?'Belum ada soalan diterbitkan bagi tingkatan ini.':questionState==='error'?'Sambungan gagal. Senarai soalan belum dapat dibaca.':'Memuatkan soalan terbitan guru…';
  refreshState();
 }
 function refreshClasses(){
  $('kelas').replaceChildren();classes.filter(c=>c.startsWith($('level').value+' ')).forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;$('kelas').append(o)});renderQuestions();
 }
 async function loadQuestions(){
- ready=false;lock(true);status('Memuatkan soalan terbitan guru…');
+ ready=false;questionState='loading';questions=[];lock(true);renderQuestions();status('Memuatkan soalan terbitan guru…');
  try{
   const [health,body]=await Promise.all([read('health'),read('questions')]);
   if(!health?.success||Number.parseFloat(health.version)<15)throw Error('Sambungan penghantaran belum tersedia. Maklumkan kepada guru.');
   if(!body?.success||!Array.isArray(body.data))throw Error(body?.error||'Soalan belum dapat dibaca.');
-  questions=body.data;ready=true;renderQuestions();
- }catch(e){questions=[];renderQuestions();status(e.message+' Tekan Muat semula soalan.','warn')}
+  questions=body.data;ready=true;questionState='loaded';renderQuestions();
+ }catch(e){questions=[];questionState='error';renderQuestions();status(e.message+' Tekan Muat semula soalan.','warn')}
  finally{lock(false);if(ready)refreshState()}
 }
 async function confirmReceipt(storageKey,saved){
