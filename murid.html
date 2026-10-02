@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ruang Fikir Sejarah | Murid</title>
+<style>
+:root{font-family:system-ui,Arial;color:#271943;background:#f6f2ff}
+*{box-sizing:border-box}body{margin:0}
+header{background:linear-gradient(110deg,#45217b,#8e60d6);color:#fff;padding:24px 6%}
+main{max-width:850px;margin:auto;padding:18px}
+.card{background:#fff;border-radius:18px;padding:18px;margin:14px 0;box-shadow:0 4px 18px #49307715}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+label{display:block;font-weight:700;margin:12px 0 6px}
+input,select,textarea,button{font:inherit}
+input,select,textarea{width:100%;padding:12px;border:1px solid #cfc1e9;border-radius:12px;background:#fff}
+textarea{min-height:180px;resize:vertical}
+button{border:0;border-radius:12px;padding:12px 18px;background:#6b3bb0;color:#fff;font-weight:700;cursor:pointer}
+button:disabled{opacity:.55;cursor:not-allowed}
+.q{display:block;width:100%;text-align:left;background:#f2eaff;color:#2a174c;border:2px solid #dfd0f5;margin:9px 0;line-height:1.5;white-space:normal}
+.q.active{border-color:#683ca9;background:#e6dcfa}
+.muted{color:#6f6382}.ok{background:#eaf8ee;color:#185b2a;padding:12px;border-radius:12px}.warn{background:#fff3dc;color:#7a4b00;padding:12px;border-radius:12px}
+</style>
+</head>
+<body>
+<header>
+<h1>✦ Ruang Fikir Sejarah</h1>
+<p>HistoryVerse 360 · Jawab sekali · Hantar sekali</p>
+</header>
+<main>
+<div class="card">
+<h2>✍️ Latihan Murid</h2>
+<p class="muted">Pilih soalan, taip jawapan dan tekan <b>Hantar jawapan</b> sekali sahaja.</p>
+<div class="grid">
+<div><label>Tingkatan</label><select id="level"><option value="2">Tingkatan 2</option></select></div>
+<div><label>Kelas</label><select id="kelas"></select></div>
+</div>
+<label>Nama panggilan</label>
+<input id="nama" maxlength="50" autocomplete="off" placeholder="Contoh: Ida">
+<label>Pilih soalan</label>
+<div id="questions"></div>
+<p id="selected" class="muted">Belum pilih soalan.</p>
+<label>Jawapan</label>
+<textarea id="jawapan" maxlength="15000" placeholder="Taip jawapan di sini..."></textarea>
+<button id="send" disabled>Hantar jawapan</button>
+<div id="state" aria-live="polite"></div>
+</div>
+<div class="card">
+<h3>Selepas hantar</h3>
+<p class="muted">Tunggu guru menyemak. Jawapan yang guru terbitkan akan muncul dalam Galeri Jawapan pada portal utama.</p>
+</div>
+</main>
+<script>
+const API='https://script.google.com/macros/s/AKfycbzYqj4re_Bly5v7dK2o4VVw8nGZLzT2hJF9mQxey2LMnNbAG5IVeKEFmB0pUhcV49fI/exec';
+const questions=[
+ {id:'b9dba037-b9c0-4eba-a2ff-57fbfc8feb46',level:'2',bab:1,kind:'Struktur',max:3,q:'Nyatakan tiga persamaan budaya masyarakat Alam Melayu.'},
+ {id:'86cdae4e-16f8-4099-958e-51e4238733f6',level:'2',bab:1,kind:'KBAT',max:4,q:'Pada pendapat anda, mengapakah Alam Melayu menjadi kawasan yang masyhur dan tumpuan pedagang asing sejak dahulu?'}
+];
+const classes=['2 Adil','2 Bestari','2 Cendekia','2 Dedikasi','2 Ehsan','2 Gigih','2 Harmoni','2 Kreatif','2 Murni','2 Progresif','2 Rasional','2 Tekun','2 Yakin'];
+const $=id=>document.getElementById(id);
+let selected=null,busy=false;
+classes.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;$('kelas').append(o)});
+function renderQuestions(){
+ const box=$('questions');box.replaceChildren();
+ questions.forEach(q=>{
+  const b=document.createElement('button');b.type='button';b.className='q';
+  b.textContent='Bab '+q.bab+' · '+q.kind+' · '+q.max+' markah\n'+q.q;
+  b.onclick=()=>{selected=q;document.querySelectorAll('.q').forEach(x=>x.classList.remove('active'));b.classList.add('active');$('selected').textContent='Dipilih: '+q.q;$('send').disabled=false;$('jawapan').focus()};
+  box.append(b);
+ });
+}
+renderQuestions();
+$('send').onclick=async()=>{
+ if(busy)return;
+ const name=$('nama').value.trim(),answer=$('jawapan').value.trim(),cls=$('kelas').value;
+ if(!selected||!name||!answer){$('state').innerHTML='<p class="warn">Lengkapkan nama, pilih soalan dan taip jawapan dahulu.</p>';return}
+ busy=true;$('send').disabled=true;$('state').innerHTML='<p class="muted">Menghantar jawapan...</p>';
+ const payload={action:'submitAnswer',questionId:selected.id,name,cls,answer};
+ try{
+  await fetch(API,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:'payload='+encodeURIComponent(JSON.stringify(payload))});
+  $('state').innerHTML='<p class="ok">✅ Jawapan telah dihantar. Jangan tekan Hantar sekali lagi untuk jawapan yang sama.</p>';
+  $('jawapan').value='';
+  document.querySelectorAll('.q').forEach(x=>x.disabled=true);
+ }catch(e){
+  $('state').innerHTML='<p class="warn">⚠️ Sambungan gagal. Jangan hantar berulang kali. Maklumkan kepada guru.</p>';
+  $('send').disabled=false;busy=false;
+ }
+};
+</script>
+</body>
+</html>
