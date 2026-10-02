@@ -75,6 +75,23 @@ button:disabled{opacity:.55;cursor:not-allowed}
 <label for="qMax">Markah penuh</label><input id="qMax" type="number" min="1" max="100" step="1" required>
 <label for="qScheme">Skema jawapan (untuk guru)</label><textarea id="qScheme" maxlength="10000"></textarea>
 <button id="publishQuestion" type="submit">Terbitkan soalan</button></form>
+<section class="card" id="questionManager">
+<h3>Urus Soalan</h3><p>Edit soalan yang tersalah. Padam akan mengarkibkan soalan; jawapan dan semakan lama dikekalkan.</p>
+<button id="manageReload" type="button">Muat senarai soalan</button>
+<p id="manageStatus" role="status"></p><div id="manageList"></div>
+<form id="editQuestionForm" hidden>
+<h4>Edit soalan</h4><p id="editQuestionNote" class="muted"></p>
+<div class="grid"><div><label for="editLevel">Tingkatan</label><select id="editLevel"><option value="1">Tingkatan 1</option><option value="2">Tingkatan 2</option></select></div>
+<div><label for="editBab">Bab</label><input id="editBab" type="number" min="1" max="30" step="1" required></div>
+<div><label for="editTopic">Topik</label><input id="editTopic" maxlength="120" required></div>
+<div><label for="editKind">Jenis</label><input id="editKind" maxlength="30" required></div></div>
+<label for="editText">Soalan</label><textarea id="editText" maxlength="15000" required></textarea>
+<label for="editMax">Markah penuh</label><input id="editMax" type="number" min="1" max="100" step="1" required>
+<label for="editScheme">Skema jawapan</label><textarea id="editScheme" maxlength="10000"></textarea>
+<button id="editSave" type="submit">Simpan perubahan</button><button id="editCancel" type="button">Batal edit</button>
+</form>
+<div id="archiveConfirm" hidden class="warn"><p id="archivePrompt"></p><button id="archiveYes" type="button">Ya, padam daripada pilihan murid</button><button id="archiveNo" type="button">Batal</button></div>
+</section>
 <div class="card"><h3>Semak jawapan murid</h3><button id="answersReload" type="button">Muat jawapan terkini</button>
 <label for="answerFilter">Tapis kelas</label><select id="answerFilter"><option value="">Semua kelas</option></select><div id="teacherAnswers"></div></div>
 <form id="reviewForm" class="card" hidden>
@@ -198,9 +215,9 @@ const $=id=>document.getElementById(id),read=(a,p)=>window.rfPublicRead(a,p);
 let teacherKey='',epoch=0,expiry=null,answers=[],questions=[],current=null,saved=false,working=false,pending=null;
 let strokes=[],drawing=null,color='#c52b44';
 const say=(message)=>{$('teacherStatus').textContent=message};
-const controls=['publishQuestion','answersReload','saveMark','publishAnswer','answerFilter'];
+const controls=['manageReload','editSave','archiveYes','publishQuestion','answersReload','saveMark','publishAnswer','answerFilter'];
 function buttons(){controls.forEach(id=>$(id).disabled=working||!!pending||!teacherKey);$('publishAnswer').disabled=working||!!pending||!teacherKey||!saved;$('teacherCheck').hidden=!pending;$('teacherCheck').disabled=working;$('teacherUnlock').disabled=working}
-function lock(){epoch++;teacherKey='';clearTimeout(expiry);answers=[];questions=[];current=null;saved=false;strokes=[];drawing=null;pending=null;working=false;$('teacherKey').value='';$('teacherWorkspace').hidden=true;$('teacherLogin').hidden=false;$('teacherLock').hidden=true;$('teacherAnswers').replaceChildren();$('reviewForm').hidden=true;$('reviewName').textContent='';$('reviewText').textContent='';$('reviewPrompt').textContent='';$('reviewStatus').textContent='';$('reviewScore').value='';$('reviewFeedback').value='';$('qScheme').value='';draw();buttons();say('Meja Guru dikunci.')}
+function lock(){clearManager();epoch++;teacherKey='';clearTimeout(expiry);answers=[];questions=[];current=null;saved=false;strokes=[];drawing=null;pending=null;working=false;$('teacherKey').value='';$('teacherWorkspace').hidden=true;$('teacherLogin').hidden=false;$('teacherLock').hidden=true;$('teacherAnswers').replaceChildren();$('reviewForm').hidden=true;$('reviewName').textContent='';$('reviewText').textContent='';$('reviewPrompt').textContent='';$('reviewStatus').textContent='';$('reviewScore').value='';$('reviewFeedback').value='';$('qScheme').value='';draw();buttons();say('Meja Guru dikunci.')}
 async function receipt(requestId){
  for(let i=0;i<8;i++){await new Promise(r=>setTimeout(r,1500));try{const body=await read('receipt',{requestId});if(body?.success&&body.ready)return body.result}catch(e){}}
  return null;
@@ -218,7 +235,13 @@ async function run(data,onSuccess,message){
  try{
   const result=await post({...data,teacherKey},requestId);if(turn!==epoch)return;
   if(!result){pending={requestId,onSuccess};say('Status belum pasti. Tekan Semak status tindakan. Jangan ulang tindakan atau kunci semula sebelum disahkan.');return}
-  if(!result.success)throw Error(result.error||'Tindakan ditolak.');
+  if(!result.success){
+   if(data.action==='getTeacherQuestions'&&String(result.error).includes('tidak dikenali')){
+    $('manageStatus').textContent='Urus Soalan menunggu penerbitan versi Apps Script baharu oleh pemilik projek.';
+    throw Error('Urus Soalan belum diaktifkan pada backend. Terbitkan versi Apps Script baharu dahulu.');
+   }
+   throw Error(result.error||'Tindakan ditolak.');
+  }
   await onSuccess(result);
  }catch(e){if(turn===epoch)say(e.message)}finally{if(turn===epoch){working=false;buttons()}}
 }
@@ -269,6 +292,36 @@ $('reviewForm').onsubmit=e=>{
  run({action:'saveReview',answerId,score,feedback:$('reviewFeedback').value.trim(),ink:strokes},()=>{saved=true;current.STATUS_SEMAKAN='DISEMAK';$('reviewEditor').hidden=true;$('reviewScore').required=false;$('reviewStatus').textContent='✓ Semakan disimpan. Terbitkan untuk paparan murid.';renderAnswers();say('✓ Markah, komen dan anotasi disimpan.')},'Menyimpan semakan…');
 };
 $('publishAnswer').onclick=()=>{if(!current||!saved)return;run({action:'publishGallery',answerId:current.ID_JAWAPAN},()=>{say('✓ Jawapan diterbitkan ke galeri.');$('reviewStatus').textContent='✓ Diterbitkan ke Galeri Jawapan.';loadGallery()},'Menerbitkan jawapan…')};
+let managedQuestions=[],editingQuestion=null,archivingQuestion=null;
+function clearManager(){managedQuestions=[];editingQuestion=null;archivingQuestion=null;$('manageList').replaceChildren();$('editQuestionForm').reset();$('editQuestionForm').hidden=true;$('archiveConfirm').hidden=true;$('manageStatus').textContent=''}
+function showManaged(data){
+ managedQuestions=data;questions=data;editingQuestion=null;archivingQuestion=null;$('editQuestionForm').hidden=true;$('archiveConfirm').hidden=true;
+ const holder=$('manageList');holder.replaceChildren();
+ data.forEach(q=>{const card=document.createElement('article');card.className='card';const text=document.createElement('p');text.textContent='T'+q.level+' · Bab '+q.topic+' · '+q.kind+' · '+q.max+' markah · '+q.status+' — '+q.q;
+ const edit=document.createElement('button');edit.type='button';edit.textContent='Edit';edit.onclick=()=>{
+  if(working||pending||!teacherKey)return;editingQuestion=q;$('archiveConfirm').hidden=true;$('editQuestionForm').hidden=false;
+  $('editLevel').value=q.level;$('editLevel').disabled=q.answerCount>0;$('editBab').value=q.topic;$('editTopic').value=q.tajuk;$('editKind').value=q.kind;$('editText').value=q.q;$('editMax').value=q.max;$('editMax').disabled=q.reviewCount>0;$('editScheme').value=q.scheme;
+  $('editQuestionNote').textContent=q.answerCount+' jawapan sedia ada. ID soalan dikekalkan. '+(q.answerCount?'Tingkatan dikunci kerana murid sudah menjawab. ':'')+(q.reviewCount?'Markah penuh dikunci kerana semakan telah disimpan.':'');
+ };
+ const archive=document.createElement('button');archive.type='button';archive.textContent=q.status==='ARKIB'?'Terbit semula':'Padam (arkib)';archive.onclick=()=>{
+  if(working||pending||!teacherKey)return;
+  if(q.status==='ARKIB'){run({action:'restoreQuestion',questionId:q.id,revision:q.revision},manageSuccess,'Menerbitkan semula soalan…');return}
+  archivingQuestion=q;$('editQuestionForm').hidden=true;$('archivePrompt').textContent='Padam soalan ini daripada pilihan murid? '+q.q+' ('+q.answerCount+' jawapan lama akan dikekalkan.)';$('archiveConfirm').hidden=false;
+ };card.append(text,edit,archive);holder.append(card)});
+ $('manageStatus').textContent=data.length+' soalan dimuatkan, termasuk arkib.';
+}
+function manageSuccess(result){showManaged(result.data||[]);say('✓ '+result.message);window.rfReloadQuestions();if(current){$('reviewForm').hidden=true;current=null;saved=false}}
+$('manageReload').onclick=()=>run({action:'getTeacherQuestions'},result=>showManaged(result.data||[]),'Memuatkan senarai untuk edit dan arkib…');
+$('editQuestionForm').onsubmit=e=>{
+ e.preventDefault();if(!editingQuestion||!$('editQuestionForm').reportValidity())return;
+ const data={action:'updateQuestion',questionId:editingQuestion.id,revision:editingQuestion.revision,level:$('editLevel').value,topic:Number($('editBab').value),tajuk:$('editTopic').value.trim(),kind:$('editKind').value.trim(),q:$('editText').value.trim(),max:Number($('editMax').value),scheme:$('editScheme').value};
+ if(!data.q||!data.tajuk||!data.kind)return say('Lengkapkan topik, jenis dan soalan.');
+ run(data,manageSuccess,'Menyimpan perubahan soalan…');
+};
+$('editCancel').onclick=()=>{if(!working&&!pending){editingQuestion=null;$('editQuestionForm').hidden=true}};
+$('archiveNo').onclick=()=>{if(!working&&!pending){archivingQuestion=null;$('archiveConfirm').hidden=true}};
+$('archiveYes').onclick=()=>{if(!archivingQuestion)return;run({action:'archiveQuestion',questionId:archivingQuestion.id,revision:archivingQuestion.revision},manageSuccess,'Mengarkibkan soalan…')};
+
 const canvas=$('reviewInk'),ctx=canvas.getContext('2d');
 function size(){canvas.width=canvas.parentElement.clientWidth;canvas.height=canvas.parentElement.clientHeight;draw()}
 function draw(){ctx.clearRect(0,0,canvas.width,canvas.height);strokes.forEach(s=>{ctx.beginPath();ctx.strokeStyle=s.color;ctx.lineWidth=3;ctx.lineCap='round';ctx.lineJoin='round';s.points.forEach((p,i)=>i?ctx.lineTo(p[0]*canvas.width,p[1]*canvas.height):ctx.moveTo(p[0]*canvas.width,p[1]*canvas.height));ctx.stroke()})}
