@@ -20,7 +20,14 @@ button:disabled{opacity:.55;cursor:not-allowed}
 .q{display:block;width:100%;text-align:left;background:#f2eaff;color:#2a174c;border:2px solid #dfd0f5;margin:9px 0;line-height:1.5;white-space:normal}
 .q.active{border-color:#683ca9;background:#e6dcfa}
 .muted{color:#6f6382}.ok{background:#eaf8ee;color:#185b2a;padding:12px;border-radius:12px}.warn{background:#fff3dc;color:#7a4b00;padding:12px;border-radius:12px}
-[hidden]{display:none!important}.row,nav{display:flex;gap:8px;flex-wrap:wrap}nav{margin:16px 0}nav button[aria-pressed="true"]{background:#45217b;outline:3px solid #c9b0ef}.reviewPaper{position:relative;background:#fffdf4;border:1px solid #d7cbe7;margin:12px 0;min-height:250px}.reviewPaper pre,.galleryAnswer{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.8;padding:18px;margin:0}.reviewPaper canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}input[type=number]{max-width:220px}button{margin-top:6px}#teacherAnswers{max-height:420px;overflow:auto}</style>
+[hidden]{display:none!important}.row,nav{display:flex;gap:8px;flex-wrap:wrap}nav{margin:16px 0}nav button[aria-pressed="true"]{background:#45217b;outline:3px solid #c9b0ef}.reviewPaper{position:relative;background:#fffdf4;border:1px solid #d7cbe7;margin:12px 0;min-height:250px}.reviewPaper pre,.galleryAnswer{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.8;padding:18px;margin:0}.reviewPaper canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}input[type=number]{max-width:220px}button{margin-top:6px}#teacherAnswers{max-height:420px;overflow:auto}
+.galleryPaper{position:relative;background:#fffdf4;border:1px solid #d7cbe7;border-radius:12px;min-height:150px;margin:10px 0;overflow:hidden}
+.galleryPaper pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.8;padding:18px;margin:0;position:relative;z-index:1}
+.galleryPaper canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
+.stickyBox{background:#f7f1ff;border:1px solid #dfd0f5;border-radius:14px;padding:14px;margin-top:12px}
+.stickyBox textarea{min-height:80px}
+.stickyNote{background:#fff7b8;border-radius:10px;padding:10px 12px;margin:8px 0;box-shadow:0 2px 8px #49307718}
+.teacherInkLabel{font-weight:800;color:#6b3bb0;margin-top:8px}</style>
 </head>
 <body>
 <header>
@@ -94,6 +101,7 @@ button:disabled{opacity:.55;cursor:not-allowed}
 </section>
 <div class="card"><h3>Semak jawapan murid</h3><button id="answersReload" type="button">Muat jawapan terkini</button>
 <label for="answerFilter">Tapis kelas</label><select id="answerFilter"><option value="">Semua kelas</option></select><div id="teacherAnswers"></div></div>
+<div class="card"><h3>💜 Kelulusan Sticky Notes</h3><p class="muted">Nota murid hanya muncul di galeri selepas cikgu meluluskannya.</p><button id="notesReload" type="button">Semak sticky note menunggu</button><p id="notesStatus" role="status"></p><div id="pendingNotes"></div></div>
 <form id="reviewForm" class="card" hidden>
 <h3 id="reviewName"></h3><p id="reviewPrompt"></p>
 <div id="reviewEditor"><div class="row"><button id="penRed" type="button">Pen merah</button><button id="penGreen" type="button">Pen hijau</button><button id="penUndo" type="button">Undur pen</button><button id="penClear" type="button">Kosongkan pen baharu</button></div>
@@ -215,7 +223,7 @@ const $=id=>document.getElementById(id),read=(a,p)=>window.rfPublicRead(a,p);
 let teacherKey='',epoch=0,expiry=null,answers=[],questions=[],current=null,saved=false,working=false,pending=null;
 let strokes=[],drawing=null,color='#c52b44';
 const say=(message)=>{$('teacherStatus').textContent=message};
-const controls=['manageReload','editSave','archiveYes','publishQuestion','answersReload','saveMark','publishAnswer','answerFilter'];
+const controls=['manageReload','editSave','archiveYes','publishQuestion','answersReload','notesReload','saveMark','publishAnswer','answerFilter'];
 function buttons(){controls.forEach(id=>$(id).disabled=working||!!pending||!teacherKey);$('publishAnswer').disabled=working||!!pending||!teacherKey||!saved;$('teacherCheck').hidden=!pending;$('teacherCheck').disabled=working;$('teacherUnlock').disabled=working}
 function lock(){clearManager();epoch++;teacherKey='';clearTimeout(expiry);answers=[];questions=[];current=null;saved=false;strokes=[];drawing=null;pending=null;working=false;$('teacherKey').value='';$('teacherWorkspace').hidden=true;$('teacherLogin').hidden=false;$('teacherLock').hidden=true;$('teacherAnswers').replaceChildren();$('reviewForm').hidden=true;$('reviewName').textContent='';$('reviewText').textContent='';$('reviewPrompt').textContent='';$('reviewStatus').textContent='';$('reviewScore').value='';$('reviewFeedback').value='';$('qScheme').value='';draw();buttons();say('Meja Guru dikunci.')}
 async function receipt(requestId){
@@ -322,6 +330,22 @@ $('editCancel').onclick=()=>{if(!working&&!pending){editingQuestion=null;$('edit
 $('archiveNo').onclick=()=>{if(!working&&!pending){archivingQuestion=null;$('archiveConfirm').hidden=true}};
 $('archiveYes').onclick=()=>{if(!archivingQuestion)return;run({action:'archiveQuestion',questionId:archivingQuestion.id,revision:archivingQuestion.revision},manageSuccess,'Mengarkibkan soalan…')};
 
+
+function renderPendingNotes(data){
+ const holder=$('pendingNotes');holder.replaceChildren();
+ if(!data.length){holder.textContent='Tiada sticky note menunggu kelulusan.';$('notesStatus').textContent='Semua nota sudah disemak.';return}
+ data.forEach(n=>{
+  const card=document.createElement('article');card.className='stickyNote';
+  const who=document.createElement('strong');who.textContent=(n.NAMA_PANGGILAN||'Murid')+(n.KELAS?' · '+n.KELAS:'');
+  const msg=document.createElement('p');msg.textContent=n.MESEJ||'';
+  const approve=document.createElement('button');approve.type='button';approve.textContent='✓ Lulus untuk galeri';
+  approve.onclick=()=>run({action:'approveStickyNote',noteId:n.ID_NOTA},()=>{card.remove();$('notesStatus').textContent='✓ Sticky note diluluskan.';loadGallery()},'Meluluskan sticky note…');
+  card.append(who,msg,approve);holder.append(card);
+ });
+ $('notesStatus').textContent=data.length+' nota menunggu kelulusan.';
+}
+$('notesReload').onclick=()=>run({action:'getPendingNotes'},result=>renderPendingNotes(result.data||[]),'Memuatkan sticky note menunggu…');
+
 const canvas=$('reviewInk'),ctx=canvas.getContext('2d');
 function size(){canvas.width=canvas.parentElement.clientWidth;canvas.height=canvas.parentElement.clientHeight;draw()}
 function draw(){ctx.clearRect(0,0,canvas.width,canvas.height);strokes.forEach(s=>{ctx.beginPath();ctx.strokeStyle=s.color;ctx.lineWidth=3;ctx.lineCap='round';ctx.lineJoin='round';s.points.forEach((p,i)=>i?ctx.lineTo(p[0]*canvas.width,p[1]*canvas.height):ctx.moveTo(p[0]*canvas.width,p[1]*canvas.height));ctx.stroke()})}
@@ -329,11 +353,61 @@ function point(e){const r=canvas.getBoundingClientRect();return [(e.clientX-r.le
 canvas.onpointerdown=e=>{if(!teacherKey||working||pending||saved)return;canvas.setPointerCapture(e.pointerId);drawing={color,points:[point(e)]};strokes.push(drawing);draw()};canvas.onpointermove=e=>{if(drawing){drawing.points.push(point(e));draw()}};canvas.onpointerup=canvas.onpointercancel=()=>drawing=null;
 $('penRed').onclick=()=>color='#c52b44';$('penGreen').onclick=()=>color='#168447';$('penUndo').onclick=()=>{if(!working&&!pending){strokes.pop();draw()}};$('penClear').onclick=()=>{if(!working&&!pending){strokes=[];draw()}};
 window.addEventListener('resize',()=>{if(current&&!$('teacherPanel').hidden)size()});
+async function publicPost(data){
+ const requestId=crypto.randomUUID();
+ const payload={...data,requestId};
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+ try{await fetch(window.RUANG_FIKIR_API_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:new URLSearchParams({payload:JSON.stringify(payload)}),signal:controller.signal})}catch(e){}finally{clearTimeout(timer)}
+ for(let i=0;i<10;i++){
+  await new Promise(r=>setTimeout(r,1200));
+  try{const body=await read('receipt',{requestId});if(!body?.success||!body.ready)continue;return body.result}catch(e){}
+ }
+ throw Error('Belum dapat mengesahkan penghantaran. Jangan tekan berulang kali; cuba muat semula galeri sebentar lagi.');
+}
+function renderGalleryInk(canvas,paper,ink){
+ requestAnimationFrame(()=>{
+  canvas.width=paper.clientWidth;canvas.height=paper.clientHeight;const g=canvas.getContext('2d');g.clearRect(0,0,canvas.width,canvas.height);
+  (Array.isArray(ink)?ink:[]).forEach(s=>{g.beginPath();g.strokeStyle=s.color||'#c52b44';g.lineWidth=3;g.lineCap='round';g.lineJoin='round';(s.points||[]).forEach((p,i)=>{if(!Array.isArray(p))return;i?g.lineTo(p[0]*canvas.width,p[1]*canvas.height):g.moveTo(p[0]*canvas.width,p[1]*canvas.height)});g.stroke()});
+ });
+}
 async function loadGallery(){
  $('galleryReload').disabled=true;$('galleryStatus').textContent='Memuatkan galeri…';
- try{const result=await read('gallery');if(!result?.success||!Array.isArray(result.data))throw Error(result?.error||'Galeri belum dapat dibaca.');const holder=$('galleryCards');holder.replaceChildren();
- result.data.forEach(a=>{const card=document.createElement('article');card.className='card';const title=document.createElement('h3');title.textContent=a.nama+' · '+a.kelas;const q=document.createElement('p');q.textContent=a.soalan;const answer=document.createElement('pre');answer.className='galleryAnswer';answer.textContent=a.jawapan;const mark=document.createElement('p');mark.textContent=a.markah+' / '+a.penuh+' markah';const comment=document.createElement('p');comment.textContent=a.komen||'Tiada komen.';card.append(title,q,answer,mark,comment);holder.append(card)});
- $('galleryStatus').textContent=result.data.length?result.data.length+' jawapan diterbitkan.':'Belum ada jawapan yang diterbitkan oleh cikgu.';
+ try{
+  const result=await read('gallery');if(!result?.success||!Array.isArray(result.data))throw Error(result?.error||'Galeri belum dapat dibaca.');
+  const holder=$('galleryCards');holder.replaceChildren();
+  result.data.forEach(a=>{
+   const card=document.createElement('article');card.className='card';
+   const title=document.createElement('h3');title.textContent=(a.nama||'Murid')+' · '+(a.kelas||'');
+   const q=document.createElement('p');q.textContent=a.soalan||'';
+   const inkLabel=document.createElement('p');inkLabel.className='teacherInkLabel';inkLabel.textContent='✍️ Jawapan & penanda cikgu';
+   const paper=document.createElement('div');paper.className='galleryPaper';
+   const answer=document.createElement('pre');answer.textContent=a.jawapan||'';
+   const inkCanvas=document.createElement('canvas');inkCanvas.setAttribute('aria-label','Penanda guru pada jawapan');
+   paper.append(answer,inkCanvas);
+   const mark=document.createElement('p');mark.innerHTML='<strong>✅ '+a.markah+' / '+a.penuh+' markah</strong>';
+   const comment=document.createElement('p');comment.textContent=a.komen||'Tiada komen.';
+   const notesHead=document.createElement('h4');notesHead.textContent='💜 Sticky Notes';
+   const notes=document.createElement('div');
+   (Array.isArray(a.stickyNotes)?a.stickyNotes:[]).forEach(n=>{const el=document.createElement('div');el.className='stickyNote';const who=document.createElement('strong');who.textContent=n.nama||'Rakan';const msg=document.createElement('p');msg.textContent=n.mesej||'';el.append(who,msg);notes.append(el)});
+   if(!notes.childElementCount){const empty=document.createElement('p');empty.className='muted';empty.textContent='Belum ada sticky note yang diluluskan.';notes.append(empty)}
+   const sticky=document.createElement('div');sticky.className='stickyBox';
+   const sh=document.createElement('strong');sh.textContent='📝 Tampal sticky note untuk rakan';
+   const name=document.createElement('input');name.maxLength=30;name.placeholder='Nama panggilan';
+   const message=document.createElement('textarea');message.maxLength=180;message.placeholder='Contoh: Bagus! Jawapan awak jelas 👍';
+   const send=document.createElement('button');send.type='button';send.textContent='💌 Hantar sticky note';
+   const state=document.createElement('p');state.className='muted';state.setAttribute('role','status');
+   send.onclick=async()=>{
+    const nm=name.value.trim(),msg=message.value.trim();
+    if(!nm||!msg){state.textContent='Masukkan nama panggilan dan mesej dahulu.';return}
+    send.disabled=true;state.textContent='Menghantar untuk kelulusan cikgu…';
+    try{const r=await publicPost({action:'addStickyNote',answerId:a.id,name:nm,message:msg});if(!r?.success)throw Error(r?.error||'Sticky note belum dapat dihantar.');message.value='';state.textContent='✓ Sticky note dihantar. Ia akan muncul selepas cikgu meluluskannya.'}
+    catch(e){state.textContent='⚠️ '+e.message}finally{send.disabled=false}
+   };
+   sticky.append(sh,name,message,send,state);
+   card.append(title,q,inkLabel,paper,mark,comment,notesHead,notes,sticky);holder.append(card);
+   renderGalleryInk(inkCanvas,paper,a.anotasi||a.ink||[]);
+  });
+  $('galleryStatus').textContent=result.data.length?result.data.length+' jawapan diterbitkan. Penanda cikgu dan sticky note dipaparkan bersama jawapan.':'Belum ada jawapan yang diterbitkan oleh cikgu.';
  }catch(e){$('galleryStatus').textContent=e.message}finally{$('galleryReload').disabled=false}
 }
 $('galleryReload').onclick=loadGallery;
