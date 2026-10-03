@@ -27,7 +27,11 @@ button:disabled{opacity:.55;cursor:not-allowed}
 .stickyBox{background:#f7f1ff;border:1px solid #dfd0f5;border-radius:14px;padding:14px;margin-top:12px}
 .stickyBox textarea{min-height:80px}
 .stickyNote{background:#fff7b8;border-radius:10px;padding:10px 12px;margin:8px 0;box-shadow:0 2px 8px #49307718}
-.teacherInkLabel{font-weight:800;color:#6b3bb0;margin-top:8px}</style>
+.teacherInkLabel{font-weight:800;color:#6b3bb0;margin-top:8px}
+.schemePanel{background:linear-gradient(135deg,#fff9d9,#fff3b0);border:2px solid #e4bd3e;border-radius:16px;padding:14px 16px;margin:14px 0;box-shadow:0 3px 12px #7a5b0018}
+.schemePanel h4{color:#6b4a00;margin:0 0 8px;font-size:1.05rem}
+.schemePanel pre{background:#fffdf2;border:1px solid #ead77e;border-radius:12px;color:#332a12;font:inherit;line-height:1.65;margin:0;padding:13px;white-space:pre-wrap;overflow-wrap:anywhere}
+.schemeMeta{color:#705a16;font-size:.92rem;font-weight:700;margin:8px 0 0}</style>
 </head>
 <body>
 <header>
@@ -104,6 +108,11 @@ button:disabled{opacity:.55;cursor:not-allowed}
 <div class="card"><h3>💜 Kelulusan Sticky Notes</h3><p class="muted">Nota murid hanya muncul di galeri selepas cikgu meluluskannya.</p><button id="notesReload" type="button">Semak sticky note menunggu</button><p id="notesStatus" role="status"></p><div id="pendingNotes"></div></div>
 <form id="reviewForm" class="card" hidden>
 <h3 id="reviewName"></h3><p id="reviewPrompt"></p>
+<section id="reviewScheme" class="schemePanel" hidden aria-live="polite">
+<h4>📋 Skema Jawapan Guru</h4>
+<pre id="reviewSchemeText"></pre>
+<p id="reviewSchemeMeta" class="schemeMeta"></p>
+</section>
 <div id="reviewEditor"><div class="row"><button id="penRed" type="button">Pen merah</button><button id="penGreen" type="button">Pen hijau</button><button id="penUndo" type="button">Undur pen</button><button id="penClear" type="button">Kosongkan pen baharu</button></div>
 <p class="muted">Tulis pada jawapan menggunakan pen, tetikus atau sentuhan. Simpan semakan sebelum terbit.</p>
 <div class="reviewPaper"><pre id="reviewText"></pre><canvas id="reviewInk" aria-label="Ruang anotasi pen"></canvas></div>
@@ -225,7 +234,7 @@ let strokes=[],drawing=null,color='#c52b44';
 const say=(message)=>{$('teacherStatus').textContent=message};
 const controls=['manageReload','editSave','archiveYes','publishQuestion','answersReload','notesReload','saveMark','publishAnswer','answerFilter'];
 function buttons(){controls.forEach(id=>$(id).disabled=working||!!pending||!teacherKey);$('publishAnswer').disabled=working||!!pending||!teacherKey||!saved;$('teacherCheck').hidden=!pending;$('teacherCheck').disabled=working;$('teacherUnlock').disabled=working}
-function lock(){clearManager();epoch++;teacherKey='';clearTimeout(expiry);answers=[];questions=[];current=null;saved=false;strokes=[];drawing=null;pending=null;working=false;$('teacherKey').value='';$('teacherWorkspace').hidden=true;$('teacherLogin').hidden=false;$('teacherLock').hidden=true;$('teacherAnswers').replaceChildren();$('reviewForm').hidden=true;$('reviewName').textContent='';$('reviewText').textContent='';$('reviewPrompt').textContent='';$('reviewStatus').textContent='';$('reviewScore').value='';$('reviewFeedback').value='';$('qScheme').value='';draw();buttons();say('Meja Guru dikunci.')}
+function lock(){clearManager();epoch++;teacherKey='';clearTimeout(expiry);answers=[];questions=[];current=null;saved=false;strokes=[];drawing=null;pending=null;working=false;$('teacherKey').value='';$('teacherWorkspace').hidden=true;$('teacherLogin').hidden=false;$('teacherLock').hidden=true;$('teacherAnswers').replaceChildren();$('reviewForm').hidden=true;$('reviewName').textContent='';$('reviewText').textContent='';$('reviewPrompt').textContent='';$('reviewScheme').hidden=true;$('reviewSchemeText').textContent='';$('reviewSchemeMeta').textContent='';$('reviewStatus').textContent='';$('reviewScore').value='';$('reviewFeedback').value='';$('qScheme').value='';draw();buttons();say('Meja Guru dikunci.')}
 async function receipt(requestId){
  for(let i=0;i<8;i++){await new Promise(r=>setTimeout(r,1500));try{const body=await read('receipt',{requestId});if(body?.success&&body.ready)return body.result}catch(e){}}
  return null;
@@ -264,8 +273,15 @@ $('teacherLogin').onsubmit=async e=>{
   const result=await post({action:'getTeacherAnswers',teacherKey:key},crypto.randomUUID());if(turn!==epoch)return;
   if(!result?.success||!Array.isArray(result.data))throw Error(result?.error||'Kunci belum dapat disahkan. Cuba semula.');
   teacherKey=key;answers=result.data;$('teacherKey').value='';$('teacherLogin').hidden=true;$('teacherWorkspace').hidden=false;$('teacherLock').hidden=false;
-  expiry=setTimeout(lock,15*60*1000);say('Akses guru disahkan.');renderAnswers();
-  try{const q=await read('questions');if(turn===epoch&&q.success)questions=q.data}catch(e){}
+  expiry=setTimeout(lock,15*60*1000);say('Akses guru disahkan. Memuatkan skema jawapan…');
+  try{
+   const tq=await post({action:'getTeacherQuestions',teacherKey:key},crypto.randomUUID());
+   if(turn===epoch&&tq?.success&&Array.isArray(tq.data))questions=tq.data;
+   else throw Error('Senarai soalan guru tidak tersedia.');
+  }catch(e){
+   try{const q=await read('questions');if(turn===epoch&&q.success)questions=q.data}catch(ignore){}
+  }
+  if(turn===epoch){renderAnswers();say('Akses guru disahkan. Skema jawapan sedia untuk semakan.');}
  }catch(e){if(turn===epoch){$('teacherKey').value='';say(e.message)}}finally{if(turn===epoch){working=false;buttons()}}
 };
 $('teacherLock').onclick=lock;
@@ -288,6 +304,7 @@ function openAnswer(a){
  if(working||pending||!teacherKey)return;current=a;strokes=[];drawing=null;saved=a.STATUS_SEMAKAN==='DISEMAK';
  const q=questions.find(q=>String(q.id)===String(a.ID_SOALAN));
  $('reviewForm').hidden=false;$('reviewName').textContent=a.KOD_MURID+' · '+a.KELAS;$('reviewPrompt').textContent=q?.q||'ID soalan: '+a.ID_SOALAN;$('reviewText').textContent=a.JAWAPAN;
+ const scheme=String(q?.scheme||'').trim();$('reviewScheme').hidden=!q;$('reviewSchemeText').textContent=scheme||'Skema belum dimasukkan untuk soalan ini.';$('reviewSchemeMeta').textContent=q?'Markah penuh: '+q.max+' markah · Paparan ini hanya untuk guru.':'';
  $('reviewEditor').hidden=saved||!q;$('reviewScore').required=!saved&&!!q;$('reviewScore').value='';$('reviewScore').max=q?.max||0;$('reviewFeedback').value='';
  $('reviewStatus').textContent=saved?'Semakan sedia ada dikekalkan. Cikgu boleh menerbitkannya ke galeri.':!q?'Maklumat markah penuh belum dimuatkan. Muat semula Meja Guru sebelum menyemak.':'Beri markah dan komen, kemudian simpan semakan.';
  buttons();requestAnimationFrame(size);
