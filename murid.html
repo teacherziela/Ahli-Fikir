@@ -115,7 +115,7 @@ button:disabled{opacity:.55;cursor:not-allowed}
 <div id="archiveConfirm" hidden class="warn"><p id="archivePrompt"></p><button id="archiveYes" type="button">Ya, padam daripada pilihan murid</button><button id="archiveNo" type="button">Batal</button></div>
 </section>
 <div class="card"><h3>Semak jawapan murid</h3><button id="answersReload" type="button">Muat jawapan terkini</button>
-<label for="answerFilter">Tapis kelas</label><select id="answerFilter"><option value="">Semua kelas</option></select><div id="teacherAnswers"></div></div>
+<div class="grid"><div><label for="answerFilter">Tapis kelas</label><select id="answerFilter"><option value="">Semua kelas</option></select></div><div><label for="reviewStatusFilter">Tapis status semakan</label><select id="reviewStatusFilter"><option value="">Semua status</option><option value="BELUM SEMAK">Belum disemak</option><option value="DISEMAK">Sudah disemak</option></select></div></div><div id="teacherAnswers"></div></div>
 <div class="card"><h3>💜 Kelulusan Sticky Notes</h3><p class="muted">Nota murid hanya muncul di galeri selepas cikgu meluluskannya.</p><button id="notesReload" type="button">Semak sticky note menunggu</button><p id="notesStatus" role="status"></p><div id="pendingNotes"></div></div>
 <form id="reviewForm" class="card" hidden>
 <h3 id="reviewName"></h3><p id="reviewPrompt"></p>
@@ -303,13 +303,14 @@ $('publishForm').onsubmit=e=>{
  run(data,async result=>{say('✓ Soalan diterbitkan. ID: '+result.id);$('publishForm').reset();const turn=epoch;try{const q=await read('questions');if(turn===epoch&&q.success)questions=q.data}catch(e){}window.rfReloadQuestions()},'Menerbitkan soalan…');
 };
 function renderAnswers(){
- const filter=$('answerFilter').value;$('answerFilter').replaceChildren();const all=document.createElement('option');all.value='';all.textContent='Semua kelas';$('answerFilter').append(all);
+ const filter=$('answerFilter').value,statusFilter=$('reviewStatusFilter').value;$('answerFilter').replaceChildren();const all=document.createElement('option');all.value='';all.textContent='Semua kelas';$('answerFilter').append(all);
  [...new Set(answers.map(a=>a.KELAS))].sort().forEach(cls=>{const o=document.createElement('option');o.value=cls;o.textContent=cls;$('answerFilter').append(o)});$('answerFilter').value=filter;
- const holder=$('teacherAnswers');holder.replaceChildren();const list=answers.filter(a=>!filter||a.KELAS===filter);
- if(!list.length)holder.textContent='Tiada jawapan untuk pilihan ini.';
+ const holder=$('teacherAnswers');holder.replaceChildren();const list=answers.filter(a=>(!filter||a.KELAS===filter)&&(!statusFilter||String(a.STATUS_SEMAKAN||'').trim().toUpperCase()===statusFilter));
+ if(!list.length)holder.textContent='Tiada jawapan untuk pilihan kelas dan status ini.';
  list.forEach(a=>{const b=document.createElement('button');b.type='button';b.className='q';b.textContent=a.KOD_MURID+' · '+a.KELAS+' · '+a.STATUS_SEMAKAN;b.onclick=()=>openAnswer(a);holder.append(b)});
 }
 $('answerFilter').onchange=renderAnswers;
+$('reviewStatusFilter').onchange=renderAnswers;
 $('answersReload').onclick=()=>run({action:'getTeacherAnswers'},result=>{answers=result.data||[];renderAnswers();say(answers.length+' jawapan dimuatkan.')},'Memuatkan jawapan murid…');
 function openAnswer(a){
  if(working||pending||!teacherKey)return;current=a;strokes=[];drawing=null;saved=a.STATUS_SEMAKAN==='DISEMAK';
