@@ -335,6 +335,9 @@ $('answersReload').onclick=async()=>{
  if(working||pending||!teacherKey)return;
  working=true;buttons();say('Memuatkan semua jawapan '+(statusFilter==='DISEMAK'?'sudah disemak':'belum disemak')+'…');
  try{
+  if(!questions.length){
+   try{const q=await read('questions');if(q?.success&&Array.isArray(q.data))questions=q.data}catch(ignore){}
+  }
   let result=null;
   try{result=await post({action:'getTeacherAnswers',teacherKey,status:statusFilter,limit:300},crypto.randomUUID())}catch(e){}
   if(result?.success&&Array.isArray(result.data))answers=result.data;
@@ -379,7 +382,17 @@ function showManaged(data){
  $('manageStatus').textContent=data.length+' soalan dimuatkan, termasuk arkib.';
 }
 function manageSuccess(result){showManaged(result.data||[]);say('✓ '+result.message);window.rfReloadQuestions();if(current){$('reviewForm').hidden=true;current=null;saved=false}}
-$('manageReload').onclick=()=>run({action:'getTeacherQuestions'},result=>showManaged(result.data||[]),'Memuatkan senarai untuk edit dan arkib…');
+$('manageReload').onclick=async()=>{
+ if(working||pending||!teacherKey)return;
+ working=true;buttons();$('manageStatus').textContent='Memuatkan senarai soalan…';say('Memuatkan senarai soalan…');
+ try{
+  const result=await read('questions');
+  if(!result?.success||!Array.isArray(result.data))throw Error(result?.error||'Senarai soalan tidak dapat dibaca.');
+  const data=result.data.map(q=>({...q,status:q.status||'TERBIT',answerCount:Number(q.answerCount||0),reviewCount:Number(q.reviewCount||0),revision:q.revision||''}));
+  questions=data;showManaged(data);say(data.length+' soalan dimuatkan.');
+ }catch(e){$('manageStatus').textContent=e.message;say(e.message)}
+ finally{working=false;buttons()}
+};
 $('editQuestionForm').onsubmit=e=>{
  e.preventDefault();if(!editingQuestion||!$('editQuestionForm').reportValidity())return;
  const data={action:'updateQuestion',questionId:editingQuestion.id,revision:editingQuestion.revision,level:$('editLevel').value,topic:Number($('editBab').value),tajuk:$('editTopic').value.trim(),kind:$('editKind').value.trim(),q:$('editText').value.trim(),max:Number($('editMax').value),scheme:$('editScheme').value};
