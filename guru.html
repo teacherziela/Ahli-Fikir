@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ruang Fikir Sejarah | Murid & Guru</title>
+<style>
+:root{font-family:system-ui,Arial;color:#271943;background:#f6f2ff}
+*{box-sizing:border-box}body{margin:0}
+header{background:linear-gradient(110deg,#45217b,#8e60d6);color:#fff;padding:24px 6%}
+main{max-width:850px;margin:auto;padding:18px}
+.card{background:#fff;border-radius:18px;padding:18px;margin:14px 0;box-shadow:0 4px 18px #49307715}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+label{display:block;font-weight:700;margin:12px 0 6px}
+input,select,textarea,button{font:inherit}
+input,select,textarea{width:100%;padding:12px;border:1px solid #cfc1e9;border-radius:12px;background:#fff}
+textarea{min-height:180px;resize:vertical}
+button{border:0;border-radius:12px;padding:12px 18px;background:#6b3bb0;color:#fff;font-weight:700;cursor:pointer}
+button:disabled{opacity:.55;cursor:not-allowed}
+.q{display:block;width:100%;text-align:left;background:#f2eaff;color:#2a174c;border:2px solid #dfd0f5;margin:9px 0;line-height:1.5;white-space:normal}
+.q.active{border-color:#683ca9;background:#e6dcfa}
+.muted{color:#6f6382}.ok{background:#eaf8ee;color:#185b2a;padding:12px;border-radius:12px}.warn{background:#fff3dc;color:#7a4b00;padding:12px;border-radius:12px}
+[hidden]{display:none!important}.row,nav{display:flex;gap:8px;flex-wrap:wrap}nav{margin:16px 0}nav button[aria-pressed="true"]{background:#45217b;outline:3px solid #c9b0ef}.reviewPaper{position:relative;background:#fffdf4;border:1px solid #d7cbe7;margin:12px 0;min-height:250px}.reviewPaper pre,.galleryAnswer{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.8;padding:18px;margin:0}.reviewPaper canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}input[type=number]{max-width:220px}button{margin-top:6px}#teacherAnswers{max-height:420px;overflow:auto}
+.galleryPaper{position:relative;background:#fffdf4;border:1px solid #d7cbe7;border-radius:12px;min-height:150px;margin:10px 0;overflow:hidden}
+.galleryPaper pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.8;padding:18px;margin:0;position:relative;z-index:1}
+.galleryPaper canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
+.stickyBox{background:#f7f1ff;border:1px solid #dfd0f5;border-radius:14px;padding:14px;margin-top:12px}
+.stickyBox textarea{min-height:80px}
+.stickyNote{background:#fff7b8;border-radius:10px;padding:10px 12px;margin:8px 0;box-shadow:0 2px 8px #49307718}
+.galleryFilters{background:#f7f1ff;border:1px solid #dfd0f5;border-radius:14px;margin:14px 0;padding:14px}
+.galleryFilters label{margin-top:0}
+.galleryGroup{background:linear-gradient(110deg,#45217b,#7650bd);border-radius:14px;color:#fff;margin:20px 0 10px;padding:11px 15px}
+.galleryGroup strong{display:block;font-size:1.05rem}
+.galleryGroup small{color:#eee4ff}
+.teacherInkLabel{font-weight:800;color:#6b3bb0;margin-top:8px}
+.schemePanel{background:linear-gradient(135deg,#fff9d9,#fff3b0);border:2px solid #e4bd3e;border-radius:16px;padding:14px 16px;margin:14px 0;box-shadow:0 3px 12px #7a5b0018}
+.schemePanel h4{color:#6b4a00;margin:0 0 8px;font-size:1.05rem}
+.schemePanel pre{background:#fffdf2;border:1px solid #ead77e;border-radius:12px;color:#332a12;font:inherit;line-height:1.65;margin:0;padding:13px;white-space:pre-wrap;overflow-wrap:anywhere}
+.schemeMeta{color:#705a16;font-size:.92rem;font-weight:700;margin:8px 0 0}</style>
+</head>
+<body>
+<header>
+<h1>✦ Ruang Fikir Sejarah</h1>
+<p>HistoryVerse 360 · Jawab sekali · Hantar sekali</p>
+</header>
+<main><nav aria-label="Ruang portal"><button id="navstudent" type="button" aria-pressed="true">✍️ Ruang Murid</button><button id="navgallery" type="button" aria-pressed="false">🌟 Galeri Jawapan</button><button id="navteacher" type="button" aria-pressed="false">🔒 Meja Guru</button></nav><section id="studentPanel">
+<div class="card">
+<h2>✍️ Latihan Murid</h2>
+<p class="muted">Pilih soalan, taip jawapan dan tekan <b>Hantar jawapan</b> sekali sahaja.</p>
+<div class="grid">
+<div><label for="level">Tingkatan</label><select id="level"><option value="2">Tingkatan 2</option><option value="1">Tingkatan 1</option></select></div>
+<div><label for="kelas">Kelas</label><select id="kelas"></select></div>
+</div>
+<label>Pilih soalan</label>
+<div id="questions" role="group" aria-label="Soalan terbitan guru"></div>
+<button id="reload" type="button">Muat semula soalan</button>
+<p id="selected" class="muted">Belum pilih soalan.</p>
+<label for="nama">Nama panggilan</label>
+<input id="nama" maxlength="50" autocomplete="off" placeholder="Contoh: Ida">
+<label for="jawapan">Jawapan</label>
+<textarea id="jawapan" maxlength="15000" placeholder="Taip jawapan di sini..."></textarea>
+<button id="send" disabled>Hantar jawapan</button>
+<button id="check" type="button" hidden>Semak status hantaran</button>
+<p id="state" role="status" aria-live="polite"></p>
+</div>
+<div class="card">
+<h3>Selepas hantar</h3>
+<p class="muted">Tunggu guru menyemak. Jawapan yang guru terbitkan akan muncul dalam Galeri Jawapan di tab Galeri Jawapan pada laman ini.</p>
+</div>
+</section><section id="galleryPanel" hidden class="card">
+<h2>🌟 Galeri Jawapan</h2><p>Jawapan yang telah disemak dan diterbitkan oleh cikgu.</p>
+<div class="galleryFilters">
+<div class="grid">
+<div><label for="galleryLevel">Tingkatan</label><select id="galleryLevel"><option value="">Semua tingkatan</option><option value="1">Tingkatan 1</option><option value="2">Tingkatan 2</option></select></div>
+<div><label for="galleryClass">Kelas</label><select id="galleryClass"><option value="">Semua kelas</option></select></div>
+</div>
+</div>
+<button id="galleryReload" type="button">Muat semula galeri</button><p id="galleryStatus" role="status"></p><div id="galleryCards"></div>
+</section>
+<section id="teacherPanel" hidden class="card">
+<h2>🔒 Meja Guru</h2>
+<form id="teacherLogin"><p>Masukkan kunci guru sedia ada untuk menerbitkan soalan dan menyemak jawapan.</p>
+<label for="teacherKey">Kunci guru</label><input id="teacherKey" type="password" autocomplete="off" required>
+<button id="teacherUnlock" type="submit">Buka Meja Guru</button></form>
+<p id="teacherStatus" role="status" aria-live="polite">Meja Guru dikunci.</p>
+<button id="teacherLock" type="button" hidden>Kunci semula</button>
+<button id="teacherCheck" type="button" hidden>Semak status tindakan</button>
+<div id="teacherWorkspace" hidden>
+<p class="muted">Akses guru tamat selepas 15 minit. Kunci guru tidak disimpan dalam pelayar.</p>
+<form id="publishForm" class="card">
+<h3>Terbitkan soalan baharu</h3><div class="grid">
+<div><label for="qLevel">Tingkatan</label><select id="qLevel"><option value="2">Tingkatan 2</option><option value="1">Tingkatan 1</option></select></div>
+<div><label for="qBab">Bab</label><input id="qBab" type="number" min="1" max="30" step="1" required></div>
+<div><label for="qTopic">Topik</label><input id="qTopic" maxlength="120" required></div>
+<div><label for="qKind">Jenis</label><select id="qKind"><option>Struktur</option><option>KBAT</option><option>Esei</option></select></div></div>
+<label for="qText">Soalan</label><textarea id="qText" maxlength="15000" required></textarea>
+<label for="qMax">Markah penuh</label><input id="qMax" type="number" min="1" max="100" step="1" required>
+<label for="qScheme">Skema jawapan (untuk guru)</label><textarea id="qScheme" maxlength="10000"></textarea>
+<button id="publishQuestion" type="submit">Terbitkan soalan</button></form>
+<section class="card" id="questionManager">
+<h3>Urus Soalan</h3><p>Edit soalan yang tersalah. Padam akan mengarkibkan soalan; jawapan dan semakan lama dikekalkan.</p>
+<button id="manageReload" type="button">Muat senarai soalan</button>
+<p id="manageStatus" role="status"></p><div id="manageList"></div>
+<form id="editQuestionForm" hidden>
+<h4>Edit soalan</h4><p id="editQuestionNote" class="muted"></p>
+<div class="grid"><div><label for="editLevel">Tingkatan</label><select id="editLevel"><option value="1">Tingkatan 1</option><option value="2">Tingkatan 2</option></select></div>
+<div><label for="editBab">Bab</label><input id="editBab" type="number" min="1" max="30" step="1" required></div>
+<div><label for="editTopic">Topik</label><input id="editTopic" maxlength="120" required></div>
+<div><label for="editKind">Jenis</label><input id="editKind" maxlength="30" required></div></div>
+<label for="editText">Soalan</label><textarea id="editText" maxlength="15000" required></textarea>
+<label for="editMax">Markah penuh</label><input id="editMax" type="number" min="1" max="100" step="1" required>
+<label for="editScheme">Skema jawapan</label><textarea id="editScheme" maxlength="10000"></textarea>
+<button id="editSave" type="submit">Simpan perubahan</button><button id="editCancel" type="button">Batal edit</button>
+</form>
+<div id="archiveConfirm" hidden class="warn"><p id="archivePrompt"></p><button id="archiveYes" type="button">Ya, padam daripada pilihan murid</button><button id="archiveNo" type="button">Batal</button></div>
+</section>
+<div class="card"><h3>Semak jawapan murid</h3>
+<p class="muted">Pilih kelas dan status dahulu supaya sistem tidak memuatkan semua rekod serentak.</p>
+<div class="grid"><div><label for="answerFilter">Tapis kelas</label><select id="answerFilter"><option value="">Pilih kelas</option></select></div><div><label for="reviewStatusFilter">Tapis status semakan</label><select id="reviewStatusFilter"><option value="BELUM SEMAK">Belum disemak</option><option value="DISEMAK">Sudah disemak</option><option value="">Semua status</option></select></div></div>
+<button id="answersReload" type="button">Muat jawapan pilihan ini</button><div id="teacherAnswers"></div></div>
+<div class="card"><h3>💜 Kelulusan Sticky Notes</h3><p class="muted">Nota murid hanya muncul di galeri selepas cikgu meluluskannya.</p><button id="notesReload" type="button">Semak sticky note menunggu</button><p id="notesStatus" role="status"></p><div id="pendingNotes"></div></div>
+<form id="reviewForm" class="card" hidden>
+<h3 id="reviewName"></h3><p id="reviewPrompt"></p>
+<section id="reviewScheme" class="schemePanel" hidden aria-live="polite">
+<h4>📋 Skema Jawapan Guru</h4>
+<pre id="reviewSchemeText"></pre>
+<p id="reviewSchemeMeta" class="schemeMeta"></p>
+</section>
+<div id="reviewEditor"><div class="row"><button id="penRed" type="button">Pen merah</button><button id="penGreen" type="button">Pen hijau</button><button id="penUndo" type="button">Undur pen</button><button id="penClear" type="button">Kosongkan pen baharu</button></div>
+<p class="muted">Tulis pada jawapan menggunakan pen, tetikus atau sentuhan. Simpan semakan sebelum terbit.</p>
+<div class="reviewPaper"><pre id="reviewText"></pre><canvas id="reviewInk" aria-label="Ruang anotasi pen"></canvas></div>
+<label for="reviewScore">Markah</label><input id="reviewScore" type="number" min="0" step="1" required>
+<label for="reviewFeedback">Komen guru</label><textarea id="reviewFeedback" maxlength="5000"></textarea>
+<button id="saveMark" type="submit">Simpan semakan</button></div><button id="publishAnswer" type="button" disabled>Terbitkan ke galeri</button>
+<p id="reviewStatus" role="status"></p></form>
+</div></section>
+</main>
+<script src="api-config.js"></script>
+<script>
+(()=>{
+'use strict';
+const API=window.RUANG_FIKIR_API_URL;
+const $=id=>document.getElementById(id);
+const classes=['1 Adil','1 Gigih','1 Cendekia','1 Bestari','1 Yakin','1 Tekun','1 Usaha','2 Adil','2 Bestari','2 Cendekia','2 Dedikasi','2 Ehsan','2 Gigih','2 Harmoni','2 Kreatif','2 Murni','2 Progresif','2 Rasional','2 Tekun','2 Yakin'];
+let questions=[],selected=null,busy=false,ready=false,questionState='loading';
+const status=(message,kind='muted')=>{$('state').textContent=message;$('state').className=kind};
+async function read(action,params={}){
+ // Public reads must not depend on which Google account is signed in.
+ const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),12000);
+ try{
+  const result=await fetch(API+'?'+new URLSearchParams({action,...params,_:String(Date.now())}),{mode:'cors',credentials:'omit',redirect:'follow',referrerPolicy:'no-referrer',signal:controller.signal});
+  if(!result.ok)throw Error('HTTP '+result.status);
+  const body=await result.json();
+  if(!body||typeof body.success!=='boolean')throw Error('Respons tidak sah.');
+  return body;
+ }catch(error){return readJsonp(action,params)}finally{clearTimeout(timeout)}
+}
+function readJsonp(action,params={}){
+ return new Promise((resolve,reject)=>{
+  const cb='rfStudent_'+crypto.randomUUID().replaceAll('-','');
+  const el=document.createElement('script');el.referrerPolicy='no-referrer';let done=false;
+  const finish=(error,data)=>{if(done)return;done=true;clearTimeout(timer);el.remove();delete window[cb];error?reject(error):resolve(data)};
+  const timer=setTimeout(()=>finish(Error('Sambungan mengambil masa terlalu lama.')),15000);
+  window[cb]=data=>finish(null,data);el.onerror=()=>finish(Error('Sambungan Google Sheets tidak dapat dibaca.'));
+  el.src=API+'?'+new URLSearchParams({action,...params,callback:cb,_:String(Date.now())});document.head.append(el);
+ });
+}
+function key(){return 'rf-student-v1:'+JSON.stringify([selected?.id,$('kelas').value,$('nama').value.trim().toLocaleLowerCase()])}
+function record(){const raw=localStorage.getItem(key());return raw?JSON.parse(raw):null}
+function lock(value){busy=value;['level','kelas','nama','jawapan','reload'].forEach(id=>$(id).disabled=value);document.querySelectorAll('.q').forEach(el=>el.disabled=value);$('send').disabled=value||!ready||!selected;$('check').disabled=value}
+function refreshState(){
+ if(busy)return;
+ $('check').hidden=true;$('send').disabled=!ready||!selected;
+ try{
+  const saved=record();
+  if(saved){$('send').disabled=true;if(saved.status==='confirmed')status('✓ Jawapan ini sudah disimpan. ID: '+saved.id,'ok');else{status('Hantaran ini belum disahkan. Tekan Semak status hantaran; jangan hantar semula.','warn');$('check').hidden=false}}
+  else status(ready?'Pilih soalan, isi nama dan jawapan.':questionState==='error'?'Soalan belum dapat dimuatkan. Tekan Muat semula soalan.':'Memuatkan soalan terbitan guru…',questionState==='error'?'warn':'muted');
+ }catch(e){$('send').disabled=true;status('Benarkan storan pelayar untuk mengelakkan hantaran berulang.','warn')}
+}
+function renderQuestions(){
+ selected=null;$('selected').textContent='Belum pilih soalan.';$('questions').replaceChildren();
+ const list=questions.filter(q=>String(q.level)===$('level').value);
+ list.forEach(q=>{const b=document.createElement('button');b.type='button';b.className='q';b.setAttribute('aria-pressed','false');b.textContent='Bab '+q.topic+' · '+q.kind+' · '+q.max+' markah — '+q.q;b.onclick=()=>{if(busy)return;selected=q;document.querySelectorAll('.q').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-pressed','false')});b.classList.add('active');b.setAttribute('aria-pressed','true');$('selected').textContent='Dipilih: '+q.q;refreshState()};$('questions').append(b)});
+ if(!list.length)$('questions').textContent=questionState==='loaded'?'Belum ada soalan diterbitkan bagi tingkatan ini.':questionState==='error'?'Sambungan gagal. Senarai soalan belum dapat dibaca.':'Memuatkan soalan terbitan guru…';
+ refreshState();
+}
+function refreshClasses(){
+ $('kelas').replaceChildren();classes.filter(c=>c.startsWith($('level').value+' ')).forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;$('kelas').append(o)});renderQuestions();
+}
+async function loadQuestions(){
+ ready=false;questionState='loading';questions=[];lock(true);renderQuestions();status('Memuatkan soalan terbitan guru…');
+ try{
+  const [health,body]=await Promise.all([read('health'),read('questions')]);
+  if(!health?.success||Number.parseFloat(health.version)<15)throw Error('Sambungan penghantaran belum tersedia. Maklumkan kepada guru.');
+  if(!body?.success||!Array.isArray(body.data))throw Error(body?.error||'Soalan belum dapat dibaca.');
+  questions=body.data;ready=true;questionState='loaded';renderQuestions();
+ }catch(e){questions=[];questionState='error';renderQuestions();status(e.message+' Tekan Muat semula soalan.','warn')}
+ finally{lock(false);if(ready)refreshState()}
+}
+async function confirmReceipt(storageKey,saved){
+ for(let i=0;i<12;i++){
+  await new Promise(resolve=>setTimeout(resolve,1500));
+  let body;try{body=await read('receipt',{requestId:saved.requestId})}catch(e){continue}
+  if(!body?.success||!body.ready)continue;
+  const result=body.result;
+  if(result?.success===false){localStorage.removeItem(storageKey);throw Error(result.error||'Pelayan menolak hantaran. Jawapan belum disimpan.')}
+  if(!result?.success||!result.id||!result.receipt)continue;
+  localStorage.setItem(storageKey,JSON.stringify({...saved,status:'confirmed',id:result.id,receipt:result.receipt}));
+  status('✓ Jawapan disahkan disimpan dalam Google Sheets. ID: '+result.id+'. Tunggu semakan guru.','ok');
+  $('check').hidden=true;$('jawapan').value='';return;
+ }
+ throw Error('Pengesahan belum diterima. Jawapan mungkin telah disimpan. Semak status atau maklumkan kepada guru; jangan hantar semula.');
+}
+$('send').onclick=async()=>{
+ if(busy||!ready||!selected)return;
+ const name=$('nama').value.trim(),answer=$('jawapan').value.trim(),cls=$('kelas').value;
+ if(!name||!answer||!cls){status('Lengkapkan kelas, nama dan jawapan dahulu.','warn');return}
+ let storageKey,saved;
+ try{storageKey=key();if(record()){refreshState();return}saved={status:'pending',requestId:crypto.randomUUID(),created:new Date().toISOString()};localStorage.setItem(storageKey,JSON.stringify(saved))}catch(e){status('Benarkan storan pelayar sebelum menghantar. Jawapan belum dihantar.','warn');return}
+ lock(true);status('Menghantar sekali dan menunggu pengesahan…');
+ try{
+  // Exactly one POST. An opaque response is not proof of a saved answer.
+  // Receipt reads never repeat the write, even after an uncertain network error.
+  const payload={action:'submitAnswer',questionId:selected.id,name,cls,answer,requestId:saved.requestId};
+  const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),20000);
+  try{await fetch(API,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:new URLSearchParams({payload:JSON.stringify(payload)}),signal:controller.signal})}catch(e){}finally{clearTimeout(timer)}
+  await confirmReceipt(storageKey,saved);
+ }catch(e){status(e.message,'warn')}
+ finally{lock(false);try{const current=record();$('send').disabled=!!current;$('check').hidden=!current||current.status==='confirmed'}catch(e){$('send').disabled=true}}
+};
+$('check').onclick=async()=>{
+ if(busy)return;let saved,storageKey;try{saved=record();storageKey=key()}catch(e){status('Storan pelayar tidak dapat dibaca.','warn');return}if(!saved||saved.status==='confirmed')return;
+ lock(true);status('Menyemak pengesahan tanpa menghantar semula…');
+ try{await confirmReceipt(storageKey,saved)}catch(e){status(e.message,'warn')}finally{lock(false);try{const current=record();$('send').disabled=!!current;$('check').hidden=!current||current.status==='confirmed'}catch(e){$('send').disabled=true}}
+};
+window.rfPublicRead=read;
+window.rfReloadQuestions=()=>{if(!busy)return loadQuestions()};
+$('level').onchange=refreshClasses;$('kelas').onchange=refreshState;$('nama').oninput=refreshState;$('reload').onclick=loadQuestions;
+refreshClasses();loadQuestions();
+})();
+
+(()=>{
+'use strict';
+const $=id=>document.getElementById(id),read=(a,p)=>window.rfPublicRead(a,p);
+let teacherKey='',epoch=0,expiry=null,answers=[],questions=[],current=null,saved=false,working=false,pending=null,answersLoaded=false;
+let strokes=[],drawing=null,color='#c52b44';
+const say=(message)=>{$('teacherStatus').textContent=message};
+const controls=['manageReload','editSave','archiveYes','publishQuestion','answersReload','notesReload','saveMark','publishAnswer','answerFilter'];
+function buttons(){controls.forEach(id=>$(id).disabled=working||!!pending||!teacherKey);$('publishAnswer').disabled=working||!!pending||!teacherKey||!saved;$('teacherCheck').hidden=!pending;$('teacherCheck').disabled=working;$('teacherUnlock').disabled=working}
+function lock(){clearManager();epoch++;teacherKey='';clearTimeout(expiry);answers=[];questions=[];answersLoaded=false;current=null;saved=false;strokes=[];drawing=null;pending=null;working=false;$('teacherKey').value='';$('teacherWorkspace').hidden=true;$('teacherLogin').hidden=false;$('teacherLock').hidden=true;$('teacherAnswers').replaceChildren();$('reviewForm').hidden=true;$('reviewName').textContent='';$('reviewText').textContent='';$('reviewPrompt').textContent='';$('reviewScheme').hidden=true;$('reviewSchemeText').textContent='';$('reviewSchemeMeta').textContent='';$('reviewStatus').textContent='';$('reviewScore').value='';$('reviewFeedback').value='';$('qScheme').value='';draw();buttons();say('Meja Guru dikunci.')}
+async function receipt(requestId){
+ for(let i=0;i<8;i++){await new Promise(r=>setTimeout(r,1500));try{const body=await read('receipt',{requestId});if(body?.success&&body.ready)return body.result}catch(e){}}
+ return null;
+}
+async function post(data,requestId){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+ try{const response=await fetch(window.RUANG_FIKIR_API_URL,{method:'POST',mode:'cors',credentials:'omit',referrerPolicy:'no-referrer',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:new URLSearchParams({payload:JSON.stringify({...data,requestId})}),signal:controller.signal});if(response.ok){const body=await response.json();if(typeof body?.success==='boolean')return body}}
+ catch(e){}finally{clearTimeout(timer)}
+ // A failed read may follow a successful write. Never repeat the POST.
+ return receipt(requestId);
+}
+async function run(data,onSuccess,message){
+ if(working||pending||!teacherKey)return;
+ working=true;buttons();say(message);const turn=epoch,requestId=crypto.randomUUID();
+ try{
+  const result=await post({...data,teacherKey},requestId);if(turn!==epoch)return;
+  if(!result){pending={requestId,onSuccess};say('Status belum pasti. Tekan Semak status tindakan. Jangan ulang tindakan atau kunci semula sebelum disahkan.');return}
+  if(!result.success){
+   if(data.action==='getTeacherQuestions'&&String(result.error).includes('tidak dikenali')){
+    $('manageStatus').textContent='Urus Soalan menunggu penerbitan versi Apps Script baharu oleh pemilik projek.';
+    throw Error('Urus Soalan belum diaktifkan pada backend. Terbitkan versi Apps Script baharu dahulu.');
+   }
+   throw Error(result.error||'Tindakan ditolak.');
+  }
+  await onSuccess(result);
+ }catch(e){if(turn===epoch)say(e.message)}finally{if(turn===epoch){working=false;buttons()}}
+}
+$('teacherCheck').onclick=async()=>{
+ if(!pending||working)return;working=true;buttons();const turn=epoch,job=pending;say('Menyemak status tanpa menghantar semula…');
+ try{const result=await receipt(job.requestId);if(turn!==epoch)return;if(!result){say('Resit belum tersedia. Semak rekod Google Sheets sebelum mengulang tindakan.');return}pending=null;if(!result.success)throw Error(result.error||'Tindakan ditolak.');await job.onSuccess(result)}catch(e){if(turn===epoch)say(e.message)}finally{if(turn===epoch){working=false;buttons()}}
+};
+$('teacherLogin').onsubmit=async e=>{
+ e.preventDefault();if(working)return;const key=$('teacherKey').value.trim();if(!key){say('Masukkan kunci guru.');return}
+ working=true;buttons();say('Mengesahkan kunci guru…');const turn=epoch;
+ try{
+  // Jangan sahkan melalui getTeacherAnswers: bila rekod jawapan banyak,
+  // respons itu terlalu besar untuk resit Apps Script dan boleh mencetuskan
+  // "Argument too large: value". Gunakan senarai soalan guru yang lebih kecil.
+  const result=await post({action:'getPendingNotes',teacherKey:key},crypto.randomUUID());if(turn!==epoch)return;
+  if(!result?.success||!Array.isArray(result.data))throw Error(result?.error||'Kunci belum dapat disahkan. Cuba semula.');
+  teacherKey=key;answers=[];$('teacherKey').value='';$('teacherLogin').hidden=true;$('teacherWorkspace').hidden=false;$('teacherLock').hidden=false;
+  expiry=setTimeout(lock,15*60*1000);
+  try{const q=await read('questions');if(turn===epoch&&q?.success&&Array.isArray(q.data))questions=q.data}catch(ignore){}
+  renderAnswers();
+  say('Akses guru disahkan. Tekan “Muat jawapan terkini” untuk membuka senarai jawapan.');
+ }catch(e){if(turn===epoch){$('teacherKey').value='';say(e.message)}}finally{if(turn===epoch){working=false;buttons()}}
+};
+$('teacherLock').onclick=lock;
+$('publishForm').onsubmit=e=>{
+ e.preventDefault();if(!$('publishForm').reportValidity())return;
+ const data={action:'publishQuestion',level:$('qLevel').value,topic:$('qBab').value,tajuk:$('qTopic').value.trim(),kind:$('qKind').value,q:$('qText').value.trim(),max:Number($('qMax').value),scheme:$('qScheme').value.trim()};
+ if(!data.q||!data.tajuk||!Number.isInteger(data.max)||data.max<1||data.max>100)return say('Lengkapkan soalan, topik dan markah penuh yang sah.');
+ run(data,async result=>{say('✓ Soalan diterbitkan. ID: '+result.id);$('publishForm').reset();const turn=epoch;try{const q=await read('questions');if(turn===epoch&&q.success)questions=q.data}catch(e){}window.rfReloadQuestions()},'Menerbitkan soalan…');
+};
+function ensureAnswerClassOptions(){
+ const current=$('answerFilter').value;
+ if($('answerFilter').options.length<=1){
+  classes.forEach(cls=>{const o=document.createElement('option');o.value=cls;o.textContent=cls;$('answerFilter').append(o)});
+ }
+ if(current)$('answerFilter').value=current;
+}
+function renderAnswers(){
+ ensureAnswerClassOptions();
+ const filter=$('answerFilter').value,statusFilter=$('reviewStatusFilter').value;
+ const holder=$('teacherAnswers');holder.replaceChildren();
+ const list=answers.filter(a=>(!filter||a.KELAS===filter)&&(!statusFilter||String(a.STATUS_SEMAKAN||'').trim().toUpperCase()===statusFilter));
+ if(!list.length)holder.textContent=answersLoaded?'Tiada jawapan untuk pilihan kelas dan status ini.':'Pilih kelas kemudian tekan “Muat jawapan pilihan ini”.';
+ list.forEach(a=>{const b=document.createElement('button');b.type='button';b.className='q';b.textContent=a.KOD_MURID+' · '+a.KELAS+' · '+a.STATUS_SEMAKAN;b.onclick=()=>openAnswer(a);holder.append(b)});
+}
+$('answerFilter').onchange=()=>{answers=[];answersLoaded=false;renderAnswers()};
+$('reviewStatusFilter').onchange=()=>{answers=[];answersLoaded=false;renderAnswers()};
+$('answersReload').onclick=()=>{
+ const cls=$('answerFilter').value,statusFilter=$('reviewStatusFilter').value;
+ if(!cls){say('Pilih kelas dahulu supaya sistem tidak menarik semua jawapan serentak.');return}
+ run({action:'getTeacherAnswers',cls,status:statusFilter,limit:100},result=>{answers=result.data||[];answersLoaded=true;renderAnswers();say(answers.length+' jawapan dimuatkan untuk '+cls+'.')},'Memuatkan jawapan '+cls+'…');
+};
+function openAnswer(a){
+ if(working||pending||!teacherKey)return;current=a;strokes=[];drawing=null;saved=a.STATUS_SEMAKAN==='DISEMAK';
+ const q=questions.find(q=>String(q.id)===String(a.ID_SOALAN));
+ $('reviewForm').hidden=false;$('reviewName').textContent=a.KOD_MURID+' · '+a.KELAS;$('reviewPrompt').textContent=q?.q||'ID soalan: '+a.ID_SOALAN;$('reviewText').textContent=a.JAWAPAN;
+ const scheme=String(q?.scheme||'').trim();$('reviewScheme').hidden=!q;$('reviewSchemeText').textContent=scheme||'Skema belum dimasukkan untuk soalan ini.';$('reviewSchemeMeta').textContent=q?'Markah penuh: '+q.max+' markah · Paparan ini hanya untuk guru.':'';
+ $('reviewEditor').hidden=saved||!q;$('reviewScore').required=!saved&&!!q;$('reviewScore').value='';$('reviewScore').max=q?.max||0;$('reviewFeedback').value='';
+ $('reviewStatus').textContent=saved?'Semakan sedia ada dikekalkan. Cikgu boleh menerbitkannya ke galeri.':!q?'Maklumat markah penuh belum dimuatkan. Muat semula Meja Guru sebelum menyemak.':'Beri markah dan komen, kemudian simpan semakan.';
+ buttons();requestAnimationFrame(size);
+}
+$('reviewForm').onsubmit=e=>{
+ e.preventDefault();if(!current||saved||!$('reviewForm').reportValidity())return;
+ const max=Number($('reviewScore').max),score=Number($('reviewScore').value);
+ if(!Number.isInteger(score)||score<0||score>max)return say('Markah mesti antara 0 hingga '+max+'.');
+ const answerId=current.ID_JAWAPAN;
+ run({action:'saveReview',answerId,score,feedback:$('reviewFeedback').value.trim(),ink:strokes},()=>{saved=true;current.STATUS_SEMAKAN='DISEMAK';$('reviewEditor').hidden=true;$('reviewScore').required=false;$('reviewStatus').textContent='✓ Semakan disimpan. Terbitkan untuk paparan murid.';renderAnswers();say('✓ Markah, komen dan anotasi disimpan.')},'Menyimpan semakan…');
+};
+$('publishAnswer').onclick=()=>{if(!current||!saved)return;run({action:'publishGallery',answerId:current.ID_JAWAPAN},()=>{say('✓ Jawapan diterbitkan ke galeri.');$('reviewStatus').textContent='✓ Diterbitkan ke Galeri Jawapan.';loadGallery()},'Menerbitkan jawapan…')};
+let managedQuestions=[],editingQuestion=null,archivingQuestion=null;
+function clearManager(){managedQuestions=[];editingQuestion=null;archivingQuestion=null;$('manageList').replaceChildren();$('editQuestionForm').reset();$('editQuestionForm').hidden=true;$('archiveConfirm').hidden=true;$('manageStatus').textContent=''}
+function showManaged(data){
+ managedQuestions=data;questions=data;editingQuestion=null;archivingQuestion=null;$('editQuestionForm').hidden=true;$('archiveConfirm').hidden=true;
+ const holder=$('manageList');holder.replaceChildren();
+ data.forEach(q=>{const card=document.createElement('article');card.className='card';const text=document.createElement('p');text.textContent='T'+q.level+' · Bab '+q.topic+' · '+q.kind+' · '+q.max+' markah · '+q.status+' — '+q.q;
+ const edit=document.createElement('button');edit.type='button';edit.textContent='Edit';edit.onclick=()=>{
+  if(working||pending||!teacherKey)return;editingQuestion=q;$('archiveConfirm').hidden=true;$('editQuestionForm').hidden=false;
+  $('editLevel').value=q.level;$('editLevel').disabled=q.answerCount>0;$('editBab').value=q.topic;$('editTopic').value=q.tajuk;$('editKind').value=q.kind;$('editText').value=q.q;$('editMax').value=q.max;$('editMax').disabled=q.reviewCount>0;$('editScheme').value=q.scheme;
+  $('editQuestionNote').textContent=q.answerCount+' jawapan sedia ada. ID soalan dikekalkan. '+(q.answerCount?'Tingkatan dikunci kerana murid sudah menjawab. ':'')+(q.reviewCount?'Markah penuh dikunci kerana semakan telah disimpan.':'');
+ };
+ const archive=document.createElement('button');archive.type='button';archive.textContent=q.status==='ARKIB'?'Terbit semula':'Padam (arkib)';archive.onclick=()=>{
+  if(working||pending||!teacherKey)return;
+  if(q.status==='ARKIB'){run({action:'restoreQuestion',questionId:q.id,revision:q.revision},manageSuccess,'Menerbitkan semula soalan…');return}
+  archivingQuestion=q;$('editQuestionForm').hidden=true;$('archivePrompt').textContent='Padam soalan ini daripada pilihan murid? '+q.q+' ('+q.answerCount+' jawapan lama akan dikekalkan.)';$('archiveConfirm').hidden=false;
+ };card.append(text,edit,archive);holder.append(card)});
+ $('manageStatus').textContent=data.length+' soalan dimuatkan, termasuk arkib.';
+}
+function manageSuccess(result){showManaged(result.data||[]);say('✓ '+result.message);window.rfReloadQuestions();if(current){$('reviewForm').hidden=true;current=null;saved=false}}
+$('manageReload').onclick=()=>run({action:'getTeacherQuestions'},result=>showManaged(result.data||[]),'Memuatkan senarai untuk edit dan arkib…');
+$('editQuestionForm').onsubmit=e=>{
+ e.preventDefault();if(!editingQuestion||!$('editQuestionForm').reportValidity())return;
+ const data={action:'updateQuestion',questionId:editingQuestion.id,revision:editingQuestion.revision,level:$('editLevel').value,topic:Number($('editBab').value),tajuk:$('editTopic').value.trim(),kind:$('editKind').value.trim(),q:$('editText').value.trim(),max:Number($('editMax').value),scheme:$('editScheme').value};
+ if(!data.q||!data.tajuk||!data.kind)return say('Lengkapkan topik, jenis dan soalan.');
+ run(data,manageSuccess,'Menyimpan perubahan soalan…');
+};
+$('editCancel').onclick=()=>{if(!working&&!pending){editingQuestion=null;$('editQuestionForm').hidden=true}};
+$('archiveNo').onclick=()=>{if(!working&&!pending){archivingQuestion=null;$('archiveConfirm').hidden=true}};
+$('archiveYes').onclick=()=>{if(!archivingQuestion)return;run({action:'archiveQuestion',questionId:archivingQuestion.id,revision:archivingQuestion.revision},manageSuccess,'Mengarkibkan soalan…')};
+
+
+function renderPendingNotes(data){
+ const holder=$('pendingNotes');holder.replaceChildren();
+ if(!data.length){holder.textContent='Tiada sticky note menunggu kelulusan.';$('notesStatus').textContent='Semua nota sudah disemak.';return}
+ data.forEach(n=>{
+  const card=document.createElement('article');card.className='stickyNote';
+  const who=document.createElement('strong');who.textContent=(n.NAMA_PANGGILAN||'Murid')+(n.KELAS?' · '+n.KELAS:'');
+  const msg=document.createElement('p');msg.textContent=n.MESEJ||'';
+  const approve=document.createElement('button');approve.type='button';approve.textContent='✓ Lulus untuk galeri';
+  approve.onclick=()=>run({action:'approveStickyNote',noteId:n.ID_NOTA},()=>{card.remove();$('notesStatus').textContent='✓ Sticky note diluluskan.';loadGallery()},'Meluluskan sticky note…');
+  card.append(who,msg,approve);holder.append(card);
+ });
+ $('notesStatus').textContent=data.length+' nota menunggu kelulusan.';
+}
+$('notesReload').onclick=()=>run({action:'getPendingNotes'},result=>renderPendingNotes(result.data||[]),'Memuatkan sticky note menunggu…');
+
+const canvas=$('reviewInk'),ctx=canvas.getContext('2d');
+function size(){canvas.width=canvas.parentElement.clientWidth;canvas.height=canvas.parentElement.clientHeight;draw()}
+function draw(){ctx.clearRect(0,0,canvas.width,canvas.height);strokes.forEach(s=>{ctx.beginPath();ctx.strokeStyle=s.color;ctx.lineWidth=3;ctx.lineCap='round';ctx.lineJoin='round';s.points.forEach((p,i)=>i?ctx.lineTo(p[0]*canvas.width,p[1]*canvas.height):ctx.moveTo(p[0]*canvas.width,p[1]*canvas.height));ctx.stroke()})}
+function point(e){const r=canvas.getBoundingClientRect();return [(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height]}
+canvas.onpointerdown=e=>{if(!teacherKey||working||pending||saved)return;canvas.setPointerCapture(e.pointerId);drawing={color,points:[point(e)]};strokes.push(drawing);draw()};canvas.onpointermove=e=>{if(drawing){drawing.points.push(point(e));draw()}};canvas.onpointerup=canvas.onpointercancel=()=>drawing=null;
+$('penRed').onclick=()=>color='#c52b44';$('penGreen').onclick=()=>color='#168447';$('penUndo').onclick=()=>{if(!working&&!pending){strokes.pop();draw()}};$('penClear').onclick=()=>{if(!working&&!pending){strokes=[];draw()}};
+window.addEventListener('resize',()=>{if(current&&!$('teacherPanel').hidden)size()});
+async function publicPost(data){
+ const requestId=crypto.randomUUID();
+ const payload={...data,requestId};
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+ try{await fetch(window.RUANG_FIKIR_API_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:new URLSearchParams({payload:JSON.stringify(payload)}),signal:controller.signal})}catch(e){}finally{clearTimeout(timer)}
+ for(let i=0;i<10;i++){
+  await new Promise(r=>setTimeout(r,1200));
+  try{const body=await read('receipt',{requestId});if(!body?.success||!body.ready)continue;return body.result}catch(e){}
+ }
+ throw Error('Belum dapat mengesahkan penghantaran. Jangan tekan berulang kali; cuba muat semula galeri sebentar lagi.');
+}
+function renderGalleryInk(canvas,paper,ink){
+ requestAnimationFrame(()=>{
+  canvas.width=paper.clientWidth;canvas.height=paper.clientHeight;const g=canvas.getContext('2d');g.clearRect(0,0,canvas.width,canvas.height);
+  (Array.isArray(ink)?ink:[]).forEach(s=>{g.beginPath();g.strokeStyle=s.color||'#c52b44';g.lineWidth=3;g.lineCap='round';g.lineJoin='round';(s.points||[]).forEach((p,i)=>{if(!Array.isArray(p))return;i?g.lineTo(p[0]*canvas.width,p[1]*canvas.height):g.moveTo(p[0]*canvas.width,p[1]*canvas.height)});g.stroke()});
+ });
+}
+let galleryData=[];
+const galleryClassOf=a=>String(a.kelas||a.KELAS||'').trim();
+const galleryLevelOf=a=>{
+ const direct=String(a.level||a.tingkatan||a.TINGKATAN||'').match(/[12]/);
+ if(direct)return direct[0];
+ const fromClass=galleryClassOf(a).match(/^\s*([12])\b/);
+ return fromClass?fromClass[1]:'';
+};
+function refreshGalleryClassOptions(){
+ const level=$('galleryLevel').value,current=$('galleryClass').value;
+ const names=[...new Set(galleryData.filter(a=>!level||galleryLevelOf(a)===level).map(galleryClassOf).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ms',{numeric:true}));
+ $('galleryClass').replaceChildren();const all=document.createElement('option');all.value='';all.textContent='Semua kelas';$('galleryClass').append(all);
+ names.forEach(cls=>{const option=document.createElement('option');option.value=cls;option.textContent=cls;$('galleryClass').append(option)});
+ $('galleryClass').value=names.includes(current)?current:'';
+}
+function renderGallery(){
+ refreshGalleryClassOptions();
+ const level=$('galleryLevel').value,kelas=$('galleryClass').value;
+ const list=galleryData.filter(a=>(!level||galleryLevelOf(a)===level)&&(!kelas||galleryClassOf(a)===kelas)).sort((a,b)=>{
+  const byLevel=galleryLevelOf(a).localeCompare(galleryLevelOf(b));if(byLevel)return byLevel;
+  return galleryClassOf(a).localeCompare(galleryClassOf(b),'ms',{numeric:true});
+ });
+ const holder=$('galleryCards');holder.replaceChildren();let group='';
+ list.forEach(a=>{
+  const levelName=galleryLevelOf(a),className=galleryClassOf(a)||'Kelas tidak dinyatakan',groupKey=levelName+'|'+className;
+  if(groupKey!==group){group=groupKey;const head=document.createElement('div');head.className='galleryGroup';const strong=document.createElement('strong');strong.textContent=(levelName?'Tingkatan '+levelName+' · ':'')+className;const small=document.createElement('small');small.textContent='Jawapan murid yang telah diterbitkan';head.append(strong,small);holder.append(head)}
+  const card=document.createElement('article');card.className='card';
+  const title=document.createElement('h3');title.textContent=(a.nama||'Murid')+' · '+className;
+  const q=document.createElement('p');q.textContent=a.soalan||'';
+  const inkLabel=document.createElement('p');inkLabel.className='teacherInkLabel';inkLabel.textContent='✍️ Jawapan & penanda cikgu';
+  const paper=document.createElement('div');paper.className='galleryPaper';
+  const answer=document.createElement('pre');answer.textContent=a.jawapan||'';
+  const inkCanvas=document.createElement('canvas');inkCanvas.setAttribute('aria-label','Penanda guru pada jawapan');
+  paper.append(answer,inkCanvas);
+  const mark=document.createElement('p');mark.innerHTML='<strong>✅ '+a.markah+' / '+a.penuh+' markah</strong>';
+  const comment=document.createElement('p');comment.textContent=a.komen||'Tiada komen.';
+  const notesHead=document.createElement('h4');notesHead.textContent='💜 Sticky Notes';
+  const notes=document.createElement('div');
+  (Array.isArray(a.stickyNotes)?a.stickyNotes:[]).forEach(n=>{const el=document.createElement('div');el.className='stickyNote';const who=document.createElement('strong');who.textContent=n.nama||'Rakan';const msg=document.createElement('p');msg.textContent=n.mesej||'';el.append(who,msg);notes.append(el)});
+  if(!notes.childElementCount){const empty=document.createElement('p');empty.className='muted';empty.textContent='Belum ada sticky note yang diluluskan.';notes.append(empty)}
+  const sticky=document.createElement('div');sticky.className='stickyBox';
+  const sh=document.createElement('strong');sh.textContent='📝 Tampal sticky note untuk rakan';
+  const name=document.createElement('input');name.maxLength=30;name.placeholder='Nama panggilan';
+  const message=document.createElement('textarea');message.maxLength=180;message.placeholder='Contoh: Bagus! Jawapan awak jelas 👍';
+  const send=document.createElement('button');send.type='button';send.textContent='💌 Hantar sticky note';
+  const state=document.createElement('p');state.className='muted';state.setAttribute('role','status');
+  send.onclick=async()=>{
+   const nm=name.value.trim(),msg=message.value.trim();
+   if(!nm||!msg){state.textContent='Masukkan nama panggilan dan mesej dahulu.';return}
+   send.disabled=true;state.textContent='Menghantar untuk kelulusan cikgu…';
+   try{const r=await publicPost({action:'addStickyNote',answerId:a.id,name:nm,message:msg});if(!r?.success)throw Error(r?.error||'Sticky note belum dapat dihantar.');message.value='';state.textContent='✓ Sticky note dihantar. Ia akan muncul selepas cikgu meluluskannya.'}
+   catch(e){state.textContent='⚠️ '+e.message}finally{send.disabled=false}
+  };
+  sticky.append(sh,name,message,send,state);
+  card.append(title,q,inkLabel,paper,mark,comment,notesHead,notes,sticky);holder.append(card);
+  renderGalleryInk(inkCanvas,paper,a.anotasi||a.ink||[]);
+ });
+ $('galleryStatus').textContent=galleryData.length?(list.length+' daripada '+galleryData.length+' jawapan dipaparkan mengikut tingkatan dan kelas.'):'Belum ada jawapan yang diterbitkan oleh cikgu.';
+ if(galleryData.length&&!list.length)holder.textContent='Tiada jawapan diterbitkan untuk pilihan tingkatan dan kelas ini.';
+}
+async function loadGallery(){
+ $('galleryReload').disabled=true;$('galleryStatus').textContent='Memuatkan galeri…';
+ try{
+  const result=await read('gallery');if(!result?.success||!Array.isArray(result.data))throw Error(result?.error||'Galeri belum dapat dibaca.');
+  galleryData=result.data;renderGallery();
+ }catch(e){$('galleryStatus').textContent=e.message}finally{$('galleryReload').disabled=false}
+}
+$('galleryLevel').onchange=()=>{$('galleryClass').value='';renderGallery()};
+$('galleryClass').onchange=renderGallery;
+$('galleryReload').onclick=loadGallery;
+for(const name of ['student','gallery','teacher'])$('nav'+name).onclick=()=>{for(const n of ['student','gallery','teacher']){$(n+'Panel').hidden=n!==name;$('nav'+n).setAttribute('aria-pressed',String(n===name))}if(name==='gallery')loadGallery();if(name==='teacher'&&current)requestAnimationFrame(size)};
+window.addEventListener('pagehide',lock);buttons();setTimeout(()=>document.getElementById('navteacher')?.click(),50);
+})();
+
+</script>
+</body>
+</html>
