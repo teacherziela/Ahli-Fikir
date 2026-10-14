@@ -320,10 +320,46 @@ function renderAnswers(){
 }
 $('answerFilter').onchange=()=>{answers=[];answersLoaded=false;renderAnswers()};
 $('reviewStatusFilter').onchange=()=>{answers=[];answersLoaded=false;renderAnswers()};
-$('answersReload').onclick=()=>{
+
+function loadAnswersFromSheet(cls,statusFilter){
+ return new Promise((resolve,reject)=>{
+  const cb='rfGviz_'+crypto.randomUUID().replaceAll('-','');
+  const script=document.createElement('script');
+  const esc=v=>String(v).replaceAll("'","\\'");
+  let where="D = '"+esc(cls)+"'";
+  if(statusFilter)where+=" and I = '"+esc(statusFilter)+"'";
+  const tq="select A,B,C,D,E,F,G,H,I,J,K where "+where;
+  const done=(err,data)=>{clearTimeout(timer);script.remove();try{delete window[cb]}catch(e){};err?reject(err):resolve(data)};
+  const timer=setTimeout(()=>done(Error('Google Sheets mengambil masa terlalu lama. Pastikan akaun Google cikgu masih log masuk.')),15000);
+  window[cb]=payload=>{
+   try{
+    const rows=payload?.table?.rows||[];
+    const data=rows.map(r=>{
+      const v=(r.c||[]).map(x=>x?.v??'');
+      return {ID_JAWAPAN:v[0],ID_SOALAN:v[1],KOD_MURID:v[2],KELAS:v[3],TINGKATAN:v[4],JAWAPAN:v[5],VERSI:v[6],TARIKH_HANTAR:v[7],STATUS_SEMAKAN:v[8],ID_JAWAPAN_ASAL:v[9],TOKEN_HASH:v[10]};
+    }).filter(a=>a.ID_JAWAPAN);
+    done(null,data);
+   }catch(e){done(e)}
+  };
+  script.onerror=()=>done(Error('Google Sheets tidak dapat dibaca pada pelayar ini.'));
+  script.src='https://docs.google.com/spreadsheets/d/1liMah_3lHEjYVM254ccg_7BiCn8tBIq0ul0jypugSZw/gviz/tq?'+new URLSearchParams({sheet:'JAWAPAN_MURID',tqx:'responseHandler:'+cb,tq,_:String(Date.now())});
+  document.head.append(script);
+ });
+}
+
+$('answersReload').onclick=async()=>{
  const cls=$('answerFilter').value,statusFilter=$('reviewStatusFilter').value;
- if(!cls){say('Pilih kelas dahulu supaya sistem tidak menarik semua jawapan serentak.');return}
- run({action:'getTeacherAnswers',cls,status:statusFilter,limit:100},result=>{answers=result.data||[];answersLoaded=true;renderAnswers();say(answers.length+' jawapan dimuatkan untuk '+cls+'.')},'Memuatkan jawapan '+cls+'…');
+ if(!cls){say('Pilih kelas dahulu.');return}
+ if(working||pending||!teacherKey)return;
+ working=true;buttons();say('Memuatkan jawapan '+cls+'…');
+ try{
+  let result=null;
+  try{result=await post({action:'getTeacherAnswers',teacherKey,cls,status:statusFilter,limit:100},crypto.randomUUID())}catch(e){}
+  if(result?.success&&Array.isArray(result.data))answers=result.data;
+  else answers=await loadAnswersFromSheet(cls,statusFilter);
+  answersLoaded=true;renderAnswers();say(answers.length+' jawapan dimuatkan untuk '+cls+'.');
+ }catch(e){answers=[];answersLoaded=true;renderAnswers();say(e.message)}
+ finally{working=false;buttons()}
 };
 function openAnswer(a){
  if(working||pending||!teacherKey)return;current=a;strokes=[];drawing=null;saved=a.STATUS_SEMAKAN==='DISEMAK';
