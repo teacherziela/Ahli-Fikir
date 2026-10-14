@@ -281,18 +281,14 @@ $('teacherLogin').onsubmit=async e=>{
  e.preventDefault();if(working)return;const key=$('teacherKey').value.trim();if(!key){say('Masukkan kunci guru.');return}
  working=true;buttons();say('Mengesahkan kunci guru…');const turn=epoch;
  try{
-  const result=await post({action:'getTeacherAnswers',teacherKey:key},crypto.randomUUID());if(turn!==epoch)return;
+  // Jangan sahkan melalui getTeacherAnswers: bila rekod jawapan banyak,
+  // respons itu terlalu besar untuk resit Apps Script dan boleh mencetuskan
+  // "Argument too large: value". Gunakan senarai soalan guru yang lebih kecil.
+  const result=await post({action:'getTeacherQuestions',teacherKey:key},crypto.randomUUID());if(turn!==epoch)return;
   if(!result?.success||!Array.isArray(result.data))throw Error(result?.error||'Kunci belum dapat disahkan. Cuba semula.');
-  teacherKey=key;answers=result.data;$('teacherKey').value='';$('teacherLogin').hidden=true;$('teacherWorkspace').hidden=false;$('teacherLock').hidden=false;
-  expiry=setTimeout(lock,15*60*1000);say('Akses guru disahkan. Memuatkan skema jawapan…');
-  try{
-   const tq=await post({action:'getTeacherQuestions',teacherKey:key},crypto.randomUUID());
-   if(turn===epoch&&tq?.success&&Array.isArray(tq.data))questions=tq.data;
-   else throw Error('Senarai soalan guru tidak tersedia.');
-  }catch(e){
-   try{const q=await read('questions');if(turn===epoch&&q.success)questions=q.data}catch(ignore){}
-  }
-  if(turn===epoch){renderAnswers();say('Akses guru disahkan. Skema jawapan sedia untuk semakan.');}
+  teacherKey=key;questions=result.data;answers=[];$('teacherKey').value='';$('teacherLogin').hidden=true;$('teacherWorkspace').hidden=false;$('teacherLock').hidden=false;
+  expiry=setTimeout(lock,15*60*1000);renderAnswers();
+  say('Akses guru disahkan. Tekan “Muat jawapan terkini” untuk membuka senarai jawapan.');
  }catch(e){if(turn===epoch){$('teacherKey').value='';say(e.message)}}finally{if(turn===epoch){working=false;buttons()}}
 };
 $('teacherLock').onclick=lock;
