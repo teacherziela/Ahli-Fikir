@@ -481,7 +481,7 @@ async function loadGallery(){
 $('galleryLevel').onchange=()=>{$('galleryClass').value='';renderGallery()};
 $('galleryClass').onchange=renderGallery;
 $('galleryReload').onclick=loadGallery;
-for(const name of ['student','gallery','teacher'])$('nav'+name).onclick=()=>{for(const n of ['student','gallery','teacher']){$(n+'Panel').hidden=n!==name;$('nav'+n).setAttribute('aria-pressed',String(n===name))}if(name==='gallery')loadGallery();if(name==='teacher'&&current)requestAnimationFrame(size)};
+for(const name of ['student','gallery','teacher'])$('nav'+name).onclick=()=>{if(name==='teacher'){location.href='guru.html?v=teacher';return}for(const n of ['student','gallery','teacher']){$(n+'Panel').hidden=n!==name;$('nav'+n).setAttribute('aria-pressed',String(n===name))}if(name==='gallery')loadGallery()};
 window.addEventListener('pagehide',lock);buttons();
 })();
 
