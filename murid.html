@@ -243,6 +243,7 @@ refreshClasses();loadQuestions();
 'use strict';
 const $=id=>document.getElementById(id),read=(a,p)=>window.rfPublicRead(a,p);
 let teacherKey='',epoch=0,expiry=null,answers=[],questions=[],current=null,saved=false,working=false,pending=null,answersLoaded=false;
+const teacherClasses=['1 Adil','1 Gigih','1 Cendekia','1 Bestari','1 Yakin','1 Tekun','1 Usaha','2 Adil','2 Bestari','2 Cendekia','2 Dedikasi','2 Ehsan','2 Gigih','2 Harmoni','2 Kreatif','2 Murni','2 Progresif','2 Rasional','2 Tekun','2 Yakin'];
 let strokes=[],drawing=null,color='#c52b44';
 const say=(message)=>{$('teacherStatus').textContent=message};
 const controls=['manageReload','editSave','archiveYes','publishQuestion','answersReload','notesReload','saveMark','publishAnswer','answerFilter'];
@@ -305,7 +306,7 @@ $('publishForm').onsubmit=e=>{
 function ensureAnswerClassOptions(){
  const current=$('answerFilter').value;
  if($('answerFilter').options.length<=1){
-  classes.forEach(cls=>{const o=document.createElement('option');o.value=cls;o.textContent=cls;$('answerFilter').append(o)});
+  teacherClasses.forEach(cls=>{const o=document.createElement('option');o.value=cls;o.textContent=cls;$('answerFilter').append(o)});
  }
  if(current)$('answerFilter').value=current;
 }
