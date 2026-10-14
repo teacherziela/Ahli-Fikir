@@ -280,21 +280,14 @@ $('teacherCheck').onclick=async()=>{
  if(!pending||working)return;working=true;buttons();const turn=epoch,job=pending;say('Menyemak status tanpa menghantar semula…');
  try{const result=await receipt(job.requestId);if(turn!==epoch)return;if(!result){say('Resit belum tersedia. Semak rekod Google Sheets sebelum mengulang tindakan.');return}pending=null;if(!result.success)throw Error(result.error||'Tindakan ditolak.');await job.onSuccess(result)}catch(e){if(turn===epoch)say(e.message)}finally{if(turn===epoch){working=false;buttons()}}
 };
-$('teacherLogin').onsubmit=async e=>{
+$('teacherLogin').onsubmit=e=>{
  e.preventDefault();if(working)return;const key=$('teacherKey').value.trim();if(!key){say('Masukkan kunci guru.');return}
- working=true;buttons();say('Mengesahkan kunci guru…');const turn=epoch;
- try{
-  // Jangan sahkan melalui getTeacherAnswers: bila rekod jawapan banyak,
-  // respons itu terlalu besar untuk resit Apps Script dan boleh mencetuskan
-  // "Argument too large: value". Gunakan senarai soalan guru yang lebih kecil.
-  const result=await post({action:'getPendingNotes',teacherKey:key},crypto.randomUUID());if(turn!==epoch)return;
-  if(!result?.success||!Array.isArray(result.data))throw Error(result?.error||'Kunci belum dapat disahkan. Cuba semula.');
-  teacherKey=key;answers=[];$('teacherKey').value='';$('teacherLogin').hidden=true;$('teacherWorkspace').hidden=false;$('teacherLock').hidden=false;
-  expiry=setTimeout(lock,15*60*1000);
-  try{const q=await read('questions');if(turn===epoch&&q?.success&&Array.isArray(q.data))questions=q.data}catch(ignore){}
-  renderAnswers();
-  say('Akses guru disahkan. Tekan “Muat jawapan terkini” untuk membuka senarai jawapan.');
- }catch(e){if(turn===epoch){$('teacherKey').value='';say(e.message)}}finally{if(turn===epoch){working=false;buttons()}}
+ teacherKey=key;answers=[];questions=[];answersLoaded=false;
+ $('teacherLogin').hidden=true;$('teacherWorkspace').hidden=false;$('teacherLock').hidden=false;
+ clearTimeout(expiry);expiry=setTimeout(lock,15*60*1000);
+ renderAnswers();buttons();
+ read('questions').then(q=>{if(q?.success&&Array.isArray(q.data)){questions=q.data}}).catch(()=>{});
+ say('Meja Guru dibuka. Pilih Belum disemak atau Sudah disemak, kemudian tekan “Muat jawapan”.');
 };
 $('teacherLock').onclick=lock;
 $('publishForm').onsubmit=e=>{
