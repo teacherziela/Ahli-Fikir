@@ -115,9 +115,9 @@ button:disabled{opacity:.55;cursor:not-allowed}
 <div id="archiveConfirm" hidden class="warn"><p id="archivePrompt"></p><button id="archiveYes" type="button">Ya, padam daripada pilihan murid</button><button id="archiveNo" type="button">Batal</button></div>
 </section>
 <div class="card"><h3>Semak jawapan murid</h3>
-<p class="muted">Pilih kelas dan status dahulu supaya sistem tidak memuatkan semua rekod serentak.</p>
-<div class="grid"><div><label for="answerFilter">Tapis kelas</label><select id="answerFilter"><option value="">Pilih kelas</option></select></div><div><label for="reviewStatusFilter">Tapis status semakan</label><select id="reviewStatusFilter"><option value="BELUM SEMAK">Belum disemak</option><option value="DISEMAK">Sudah disemak</option><option value="">Semua status</option></select></div></div>
-<button id="answersReload" type="button">Muat jawapan pilihan ini</button><div id="teacherAnswers"></div></div>
+<p class="muted">Pilih status semakan. Sistem akan paparkan semua kelas sekali.</p>
+<div><label for="reviewStatusFilter">Tapis status semakan</label><select id="reviewStatusFilter"><option value="BELUM SEMAK">Belum disemak</option><option value="DISEMAK">Sudah disemak</option></select></div>
+<button id="answersReload" type="button">Muat jawapan</button><div id="teacherAnswers"></div></div>
 <div class="card"><h3>💜 Kelulusan Sticky Notes</h3><p class="muted">Nota murid hanya muncul di galeri selepas cikgu meluluskannya.</p><button id="notesReload" type="button">Semak sticky note menunggu</button><p id="notesStatus" role="status"></p><div id="pendingNotes"></div></div>
 <form id="reviewForm" class="card" hidden>
 <h3 id="reviewName"></h3><p id="reviewPrompt"></p>
@@ -303,34 +303,24 @@ $('publishForm').onsubmit=e=>{
  if(!data.q||!data.tajuk||!Number.isInteger(data.max)||data.max<1||data.max>100)return say('Lengkapkan soalan, topik dan markah penuh yang sah.');
  run(data,async result=>{say('✓ Soalan diterbitkan. ID: '+result.id);$('publishForm').reset();const turn=epoch;try{const q=await read('questions');if(turn===epoch&&q.success)questions=q.data}catch(e){}window.rfReloadQuestions()},'Menerbitkan soalan…');
 };
-function ensureAnswerClassOptions(){
- const current=$('answerFilter').value;
- if($('answerFilter').options.length<=1){
-  teacherClasses.forEach(cls=>{const o=document.createElement('option');o.value=cls;o.textContent=cls;$('answerFilter').append(o)});
- }
- if(current)$('answerFilter').value=current;
-}
 function renderAnswers(){
- ensureAnswerClassOptions();
- const filter=$('answerFilter').value,statusFilter=$('reviewStatusFilter').value;
+ const statusFilter=$('reviewStatusFilter').value;
  const holder=$('teacherAnswers');holder.replaceChildren();
- const list=answers.filter(a=>(!filter||a.KELAS===filter)&&(!statusFilter||String(a.STATUS_SEMAKAN||'').trim().toUpperCase()===statusFilter));
- if(!list.length)holder.textContent=answersLoaded?'Tiada jawapan untuk pilihan kelas dan status ini.':'Pilih kelas kemudian tekan “Muat jawapan pilihan ini”.';
+ const list=answers.filter(a=>!statusFilter||String(a.STATUS_SEMAKAN||'').trim().toUpperCase()===statusFilter);
+ if(!list.length)holder.textContent=answersLoaded?'Tiada jawapan untuk status ini.':'Tekan “Muat jawapan”.';
  list.forEach(a=>{const b=document.createElement('button');b.type='button';b.className='q';b.textContent=a.KOD_MURID+' · '+a.KELAS+' · '+a.STATUS_SEMAKAN;b.onclick=()=>openAnswer(a);holder.append(b)});
 }
-$('answerFilter').onchange=()=>{answers=[];answersLoaded=false;renderAnswers()};
 $('reviewStatusFilter').onchange=()=>{answers=[];answersLoaded=false;renderAnswers()};
 
-function loadAnswersFromSheet(cls,statusFilter){
+function loadAnswersFromSheet(statusFilter){
  return new Promise((resolve,reject)=>{
   const cb='rfGviz_'+crypto.randomUUID().replaceAll('-','');
   const script=document.createElement('script');
   const esc=v=>String(v).replaceAll("'","\\'");
-  let where="D = '"+esc(cls)+"'";
-  if(statusFilter)where+=" and I = '"+esc(statusFilter)+"'";
+  let where=statusFilter?"I = '"+esc(statusFilter)+"'":"I is not null";
   const tq="select A,B,C,D,E,F,G,H,I,J,K where "+where;
   const done=(err,data)=>{clearTimeout(timer);script.remove();try{delete window[cb]}catch(e){};err?reject(err):resolve(data)};
-  const timer=setTimeout(()=>done(Error('Google Sheets mengambil masa terlalu lama. Pastikan akaun Google cikgu masih log masuk.')),15000);
+  const timer=setTimeout(()=>done(Error('Google Sheets mengambil masa terlalu lama.')),15000);
   window[cb]=payload=>{
    try{
     const rows=payload?.table?.rows||[];
@@ -348,16 +338,15 @@ function loadAnswersFromSheet(cls,statusFilter){
 }
 
 $('answersReload').onclick=async()=>{
- const cls=$('answerFilter').value,statusFilter=$('reviewStatusFilter').value;
- if(!cls){say('Pilih kelas dahulu.');return}
+ const statusFilter=$('reviewStatusFilter').value;
  if(working||pending||!teacherKey)return;
- working=true;buttons();say('Memuatkan jawapan '+cls+'…');
+ working=true;buttons();say('Memuatkan semua jawapan '+(statusFilter==='DISEMAK'?'sudah disemak':'belum disemak')+'…');
  try{
   let result=null;
-  try{result=await post({action:'getTeacherAnswers',teacherKey,cls,status:statusFilter,limit:100},crypto.randomUUID())}catch(e){}
+  try{result=await post({action:'getTeacherAnswers',teacherKey,status:statusFilter,limit:300},crypto.randomUUID())}catch(e){}
   if(result?.success&&Array.isArray(result.data))answers=result.data;
-  else answers=await loadAnswersFromSheet(cls,statusFilter);
-  answersLoaded=true;renderAnswers();say(answers.length+' jawapan dimuatkan untuk '+cls+'.');
+  else answers=await loadAnswersFromSheet(statusFilter);
+  answersLoaded=true;renderAnswers();say(answers.length+' jawapan dimuatkan.');
  }catch(e){answers=[];answersLoaded=true;renderAnswers();say(e.message)}
  finally{working=false;buttons()}
 };
@@ -518,7 +507,7 @@ async function loadGallery(){
 $('galleryLevel').onchange=()=>{$('galleryClass').value='';renderGallery()};
 $('galleryClass').onchange=renderGallery;
 $('galleryReload').onclick=loadGallery;
-for(const name of ['student','gallery','teacher'])$('nav'+name).onclick=()=>{for(const n of ['student','gallery','teacher']){$(n+'Panel').hidden=n!==name;$('nav'+n).setAttribute('aria-pressed',String(n===name))}if(name==='gallery')loadGallery();if(name==='teacher'){ensureAnswerClassOptions();if(current)requestAnimationFrame(size)}};
+for(const name of ['student','gallery','teacher'])$('nav'+name).onclick=()=>{for(const n of ['student','gallery','teacher']){$(n+'Panel').hidden=n!==name;$('nav'+n).setAttribute('aria-pressed',String(n===name))}if(name==='gallery')loadGallery();if(name==='teacher'&&current)requestAnimationFrame(size)};
 window.addEventListener('pagehide',lock);buttons();
 })();
 
